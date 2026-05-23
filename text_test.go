@@ -4,6 +4,8 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"charm.land/huh/v2"
 )
 
 func TestText_E2E(t *testing.T) {
@@ -97,4 +99,37 @@ func TestText_E2E(t *testing.T) {
 			t.Errorf("expected bio zero, got %q", bio)
 		}
 	})
+}
+
+func TestText_Forwarders(t *testing.T) {
+	f := NewText().
+		Key("k").
+		Title("t").
+		TitleFunc(func() string { return "tf" }, nil).
+		Description("d").
+		DescriptionFunc(func() string { return "df" }, nil).
+		Placeholder("p").
+		PlaceholderFunc(func() string { return "pf" }, nil).
+		CharLimit(100).
+		Lines(5).
+		ShowLineNumbers(true).
+		ExternalEditor(false).
+		Editor("vim").
+		EditorExtension("md")
+	if f == nil {
+		t.Fatal("expected non-nil text after forwarder chain")
+	}
+}
+
+func TestText_AccessorWritesValue(t *testing.T) {
+	var dst string
+	acc := huh.NewPointerAccessor(&dst)
+	form := NewForm(NewGroup(NewText().Key("bio").Accessor(acc)))
+	r := New(form, WithNonInteractive(Always), WithAnswers(map[string]any{"bio": "hello"}))
+	if err := r.Run(); err != nil {
+		t.Fatal(err)
+	}
+	if dst != "hello" {
+		t.Errorf("expected accessor to receive value, got %q", dst)
+	}
 }
