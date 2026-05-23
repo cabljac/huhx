@@ -229,9 +229,9 @@ Fields without `.Key()` still work in interactive mode — huhx forwards
 them to huh as normal. Non-interactive behavior:
 
 - **Required keyless field** → runner errors with
-  `required field at group N, position M has no Key() set; call .Key("...") on it to enable non-interactive mode`.
-  Run the binary once in non-interactive mode, see which field needs a
-  key, add it, repeat.
+  `required field M in group N has no Key() set; call .Key("...") on it to enable non-interactive mode`
+  (1-based group + field index). Run the binary once in non-interactive
+  mode, see which field needs a key, add it, repeat.
 - **Optional keyless field** (`.Optional()`) → silently skipped in
   non-interactive mode.
 

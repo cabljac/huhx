@@ -454,8 +454,8 @@ func TestRunner_KeylessRequiredFieldErrors(t *testing.T) {
 	if !strings.Contains(msg, "no Key() set") {
 		t.Errorf("expected keyless message, got %q", msg)
 	}
-	if !strings.Contains(msg, "group 0") || !strings.Contains(msg, "position 1") {
-		t.Errorf("expected field location, got %q", msg)
+	if !strings.Contains(msg, "field 2") || !strings.Contains(msg, "group 1") {
+		t.Errorf("expected 1-based field location, got %q", msg)
 	}
 }
 

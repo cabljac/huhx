@@ -100,7 +100,7 @@ func (r *Runner) runNonInteractive() error {
 		for fi, f := range g.fields {
 			if f.key() == "" {
 				if f.required() {
-					return fmt.Errorf("required field at group %d, position %d has no Key() set; call .Key(\"...\") on it to enable non-interactive mode", gi, fi)
+					return fmt.Errorf("required field %d in group %d has no Key() set; call .Key(\"...\") on it to enable non-interactive mode", fi+1, gi+1)
 				}
 				continue
 			}
