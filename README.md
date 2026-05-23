@@ -1,11 +1,24 @@
 # huhx
 
-Thin builder layer on top of [charmbracelet/huh](https://github.com/charmbracelet/huh)
-that adds non-interactive / headless execution.
+**CLIs built on [huh](https://github.com/charmbracelet/huh) break in CI,
+scripts, and agent-driven workflows.** huh has no way to skip the TUI and
+accept answers programmatically, so every team that hits this hand-rolls
+the same workaround: parallel flag handling, TTY detection, duplicated
+validation logic, drifting code paths.
 
-Build a form once with the huhx builders. The runner drives it
-interactively on a TTY and falls back to CLI flags, env vars, and answer
-files in CI.
+**huhx fixes this.** Build your form once. It runs as a beautiful TUI on
+a terminal and accepts CLI flags, environment variables, or YAML/JSON
+answer files everywhere else — CI pipelines, shell scripts, automated
+tooling.
+
+**Driving CLIs from agents.** AI agents and orchestrators can call
+`WithAnswers(map[string]any{...})` to drive any huhx form in-process
+without a terminal, reusing every validator the form already enforces.
+No separate "headless mode" to keep in sync with the interactive one —
+huhx is the same form.
+
+The wrapper mirrors huh's full chainable API; existing huh code ports by
+changing import paths.
 
 ## Install
 
