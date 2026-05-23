@@ -47,3 +47,37 @@ func TestRunner_SelectValidatorOnInjected(t *testing.T) {
 		t.Errorf("expected validator sentinel wrapped, got %v", err)
 	}
 }
+
+func TestSelect_Forwarders(t *testing.T) {
+	s := NewSelect[string]().
+		Key("k").
+		Title("t").
+		TitleFunc(func() string { return "tf" }, nil).
+		Description("d").
+		DescriptionFunc(func() string { return "df" }, nil).
+		Options(huh.NewOption("a", "a")).
+		Filtering(false).
+		Inline(true).
+		Height(5)
+	if s == nil {
+		t.Fatal("expected non-nil select after forwarder chain")
+	}
+}
+
+func TestSelect_AccessorWritesValue(t *testing.T) {
+	var dst string
+	acc := huh.NewPointerAccessor(&dst)
+	form := NewForm(NewGroup(
+		NewSelect[string]().
+			Key("env").
+			Options(huh.NewOption("staging", "staging"), huh.NewOption("prod", "prod")).
+			Accessor(acc),
+	))
+	r := New(form, WithNonInteractive(Always), WithAnswers(map[string]any{"env": "prod"}))
+	if err := r.Run(); err != nil {
+		t.Fatal(err)
+	}
+	if dst != "prod" {
+		t.Errorf("expected accessor to receive %q, got %q", "prod", dst)
+	}
+}
