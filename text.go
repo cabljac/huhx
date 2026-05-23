@@ -7,6 +7,7 @@ type Text struct {
 	inner    *huh.Text
 	k        string
 	value    *string
+	accessor huh.Accessor[string]
 	validate func(string) error
 	optional bool
 }
@@ -50,7 +51,63 @@ func (t *Text) CharLimit(n int) *Text {
 // Value binds a destination string pointer.
 func (t *Text) Value(v *string) *Text {
 	t.value = v
+	t.accessor = huh.NewPointerAccessor(v)
 	t.inner.Value(v)
+	return t
+}
+
+// Accessor sets a custom accessor used for reading and writing the value.
+func (t *Text) Accessor(a huh.Accessor[string]) *Text {
+	t.accessor = a
+	t.inner.Accessor(a)
+	return t
+}
+
+// TitleFunc sets the title via a dynamic function with bindings.
+func (t *Text) TitleFunc(f func() string, bindings any) *Text {
+	t.inner.TitleFunc(f, bindings)
+	return t
+}
+
+// DescriptionFunc sets the description via a dynamic function with bindings.
+func (t *Text) DescriptionFunc(f func() string, bindings any) *Text {
+	t.inner.DescriptionFunc(f, bindings)
+	return t
+}
+
+// Lines sets the number of visible lines.
+func (t *Text) Lines(n int) *Text {
+	t.inner.Lines(n)
+	return t
+}
+
+// ShowLineNumbers toggles display of line numbers.
+func (t *Text) ShowLineNumbers(show bool) *Text {
+	t.inner.ShowLineNumbers(show)
+	return t
+}
+
+// PlaceholderFunc sets the placeholder via a dynamic function with bindings.
+func (t *Text) PlaceholderFunc(f func() string, bindings any) *Text {
+	t.inner.PlaceholderFunc(f, bindings)
+	return t
+}
+
+// ExternalEditor toggles the external editor.
+func (t *Text) ExternalEditor(enabled bool) *Text {
+	t.inner.ExternalEditor(enabled)
+	return t
+}
+
+// Editor sets the external editor command.
+func (t *Text) Editor(editor ...string) *Text {
+	t.inner.Editor(editor...)
+	return t
+}
+
+// EditorExtension sets the file extension used by the external editor.
+func (t *Text) EditorExtension(ext string) *Text {
+	t.inner.EditorExtension(ext)
 	return t
 }
 
@@ -72,7 +129,9 @@ func (t *Text) huhField() huh.Field { return t.inner }
 func (t *Text) required() bool      { return !t.optional }
 
 func (t *Text) set(value string) error {
-	if t.value != nil {
+	if t.accessor != nil {
+		t.accessor.Set(value)
+	} else if t.value != nil {
 		*t.value = value
 	}
 	if t.validate != nil {
