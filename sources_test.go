@@ -1,6 +1,8 @@
 package huhx
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -59,5 +61,41 @@ func TestRunner_AnswerFileNotFound(t *testing.T) {
 	}
 	if !strings.Contains(msg, bogus) {
 		t.Errorf("expected bogus path in error, got %q", msg)
+	}
+}
+
+// TestRunner_AnswerFileMalformedYAML exercises loadAnswerFile's parse
+// failure path. The file exists and is readable but contains a YAML
+// document that yaml.v3 cannot decode into a map.
+func TestRunner_AnswerFileMalformedYAML(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "bad.yaml")
+	// "name: : :" is well-formed text but produces a mapping value that
+	// is itself a mapping with a nil key, which yaml.v3 rejects.
+	body := "name: : :\n"
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	var name string
+	form := NewForm(NewGroup(
+		NewInput().Key("name").Value(&name),
+	))
+
+	r := New(form,
+		WithNonInteractive(Always),
+		WithAnswerFile(path),
+	)
+
+	err := r.Run()
+	if err == nil {
+		t.Fatal("expected error for malformed YAML")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "parse answer file") {
+		t.Errorf("expected parse-answer-file prefix, got %q", msg)
+	}
+	if !strings.Contains(msg, path) {
+		t.Errorf("expected file path in error, got %q", msg)
 	}
 }
