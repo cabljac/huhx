@@ -15,11 +15,14 @@ a terminal and accepts CLI flags, environment variables, or YAML/JSON
 answer files everywhere else — CI pipelines, shell scripts, automated
 tooling.
 
-**Driving CLIs from agents.** AI agents and orchestrators can call
-`WithAnswers(map[string]any{...})` to drive any huhx form in-process
-without a terminal, reusing every validator the form already enforces.
-No separate "headless mode" to keep in sync with the interactive one —
-huhx is the same form.
+**Driving CLIs from agents.** When an AI agent or orchestrator invokes
+your CLI as a subprocess, huhx accepts answers via `--answer key=val`
+flags, env vars, or an answer file — no TTY required and no separate
+code path to maintain. When the agent is itself a Go program embedding
+your form in-process, the same form can be driven via
+`WithAnswers(map[string]any{...})`. Both surfaces reuse every validator
+and every option the form already enforces. There is no separate
+"headless mode" — huhx is the same form.
 
 The wrapper mirrors huh's full chainable API; existing huh code ports by
 changing import paths.
