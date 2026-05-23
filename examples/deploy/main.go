@@ -46,7 +46,7 @@ func main() {
 						Key("all-regions").
 						Title("Deploy to all regions?").
 						Value(&allRegions),
-				).WithHide(func() bool {
+				).WithHideFunc(func() bool {
 					return environment != "prod"
 				}),
 			)

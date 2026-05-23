@@ -31,7 +31,7 @@ func buildForm(name, environment *string, allRegions *bool, hidden bool) *Form {
 		),
 		NewGroup(
 			NewConfirm().Key("all-regions").Title("All regions?").Value(allRegions),
-		).WithHide(func() bool { return hidden }),
+		).WithHideFunc(func() bool { return hidden }),
 	)
 }
 

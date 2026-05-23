@@ -13,8 +13,6 @@ files in CI.
 go get github.com/cabljac/huhx
 ```
 
-Depends on upstream `charm.land/huh/v2` — no fork required.
-
 ## Quick start
 
 ```go
@@ -50,7 +48,7 @@ func main() {
                 ),
                 huhx.NewGroup(
                     huhx.NewConfirm().Key("all-regions").Title("Deploy to all regions?").Value(&allRegions),
-                ).WithHide(func() bool { return environment != "prod" }),
+                ).WithHideFunc(func() bool { return environment != "prod" }),
             )
 
             runner := huhx.New(form,
@@ -149,9 +147,10 @@ versa — last setter wins.
 
 ## Conditional groups
 
-`Group.WithHide(fn func() bool)` skips the group in non-interactive mode
-and hides it in interactive mode when `fn()` returns true. Mirrors huh's
-`WithHideFunc` naming.
+`Group.WithHide(bool)` and `Group.WithHideFunc(func() bool)` skip the
+group in non-interactive mode and hide it in interactive mode. Both
+mirror huh's API exactly — `WithHide` takes a static bool, `WithHideFunc`
+takes a predicate re-evaluated at run time.
 
 ## Missing-answer error
 
