@@ -14,6 +14,7 @@ type Select[T comparable] struct {
 	inner       *huh.Select[T]
 	k           string
 	value       *T
+	accessor    huh.Accessor[T]
 	validate    func(T) error
 	optional    bool
 	options     []huh.Option[T]
@@ -71,7 +72,45 @@ func (s *Select[T]) OptionsFunc(f func() []huh.Option[T], bindings any) *Select[
 // Value binds a destination pointer.
 func (s *Select[T]) Value(v *T) *Select[T] {
 	s.value = v
+	s.accessor = huh.NewPointerAccessor(v)
 	s.inner.Value(v)
+	return s
+}
+
+// Accessor binds a custom accessor for reading/writing the field value.
+func (s *Select[T]) Accessor(a huh.Accessor[T]) *Select[T] {
+	s.accessor = a
+	s.inner.Accessor(a)
+	return s
+}
+
+// TitleFunc sets a dynamic title with bindings.
+func (s *Select[T]) TitleFunc(f func() string, bindings any) *Select[T] {
+	s.inner.TitleFunc(f, bindings)
+	return s
+}
+
+// DescriptionFunc sets a dynamic description with bindings.
+func (s *Select[T]) DescriptionFunc(f func() string, bindings any) *Select[T] {
+	s.inner.DescriptionFunc(f, bindings)
+	return s
+}
+
+// Filtering toggles filter input for options.
+func (s *Select[T]) Filtering(filtering bool) *Select[T] {
+	s.inner.Filtering(filtering)
+	return s
+}
+
+// Inline sets inline rendering.
+func (s *Select[T]) Inline(inline bool) *Select[T] {
+	s.inner.Inline(inline)
+	return s
+}
+
+// Height sets the visible option list height.
+func (s *Select[T]) Height(height int) *Select[T] {
+	s.inner.Height(height)
 	return s
 }
 
@@ -110,7 +149,9 @@ func (s *Select[T]) currentOptions() []huh.Option[T] {
 func (s *Select[T]) set(value string) error {
 	for _, o := range s.currentOptions() {
 		if o.Key == value || fmt.Sprintf("%v", o.Value) == value {
-			if s.value != nil {
+			if s.accessor != nil {
+				s.accessor.Set(o.Value)
+			} else if s.value != nil {
 				*s.value = o.Value
 			}
 			if s.validate != nil {
