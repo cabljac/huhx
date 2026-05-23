@@ -1,5 +1,9 @@
 # huhx
 
+[![ci](https://github.com/cabljac/huhx/actions/workflows/ci.yml/badge.svg)](https://github.com/cabljac/huhx/actions/workflows/ci.yml)
+[![Go Reference](https://pkg.go.dev/badge/github.com/cabljac/huhx.svg)](https://pkg.go.dev/github.com/cabljac/huhx)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 **CLIs built on [huh](https://github.com/charmbracelet/huh) break in CI,
 scripts, and agent-driven workflows.** huh has no way to skip the TUI and
 accept answers programmatically, so every team that hits this hand-rolls
