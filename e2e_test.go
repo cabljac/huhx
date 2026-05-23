@@ -64,12 +64,13 @@ func TestE2E_DeployHappyPath_Flags(t *testing.T) {
 		[]string{"CI=1"},
 		"--answer", "name=myapp",
 		"--answer", "environment=prod",
+		"--answer", "regions=us-east-1,us-west-2",
 		"--answer", "all-regions=true",
 	)
 	if code != 0 {
 		t.Fatalf("expected exit 0, got %d. stdout=%q stderr=%q", code, stdout, stderr)
 	}
-	want := `Deploying "myapp" to prod (all regions: true)`
+	want := `Deploying "myapp" to prod (regions: us-east-1,us-west-2; all regions: true)`
 	if !strings.Contains(stdout, want) {
 		t.Errorf("expected stdout to contain %q, got %q", want, stdout)
 	}
@@ -84,13 +85,14 @@ func TestE2E_DeployHappyPath_Env(t *testing.T) {
 			"CI=1",
 			"DEPLOY_NAME=envapp",
 			"DEPLOY_ENVIRONMENT=prod",
+			"DEPLOY_REGIONS=eu-west-1",
 			"DEPLOY_ALL_REGIONS=true",
 		},
 	)
 	if code != 0 {
 		t.Fatalf("expected exit 0, got %d. stdout=%q stderr=%q", code, stdout, stderr)
 	}
-	want := `Deploying "envapp" to prod (all regions: true)`
+	want := `Deploying "envapp" to prod (regions: eu-west-1; all regions: true)`
 	if !strings.Contains(stdout, want) {
 		t.Errorf("expected stdout to contain %q, got %q", want, stdout)
 	}
@@ -100,17 +102,18 @@ func TestE2E_DeployHiddenGroupSkipped(t *testing.T) {
 	if testing.Short() || deployBin == "" {
 		t.Skip("e2e requires built binary; skipped under -short")
 	}
-	// environment=staging hides the all-regions group via WithHide,
+	// environment=staging hides the all-regions group via WithHideFunc,
 	// so leaving --answer all-regions unset must NOT error.
 	stdout, stderr, code := runDeploy(t,
 		[]string{"CI=1"},
 		"--answer", "name=stage-app",
 		"--answer", "environment=staging",
+		"--answer", "regions=us-east-1",
 	)
 	if code != 0 {
 		t.Fatalf("expected exit 0, got %d. stdout=%q stderr=%q", code, stdout, stderr)
 	}
-	want := `Deploying "stage-app" to staging (all regions: false)`
+	want := `Deploying "stage-app" to staging (regions: us-east-1; all regions: false)`
 	if !strings.Contains(stdout, want) {
 		t.Errorf("expected stdout to contain %q, got %q", want, stdout)
 	}
@@ -146,6 +149,7 @@ func TestE2E_DeployInvalidSelectOption(t *testing.T) {
 		[]string{"CI=1"},
 		"--answer", "name=myapp",
 		"--answer", "environment=production",
+		"--answer", "regions=us-east-1",
 	)
 	if code == 0 {
 		t.Fatalf("expected non-zero exit, got 0. stdout=%q stderr=%q", stdout, stderr)
@@ -164,7 +168,11 @@ func TestE2E_DeployAnswerFile(t *testing.T) {
 	}
 	tmp := t.TempDir()
 	path := filepath.Join(tmp, "answers.yaml")
-	body := "name: file-app\nenvironment: prod\nall-regions: true\n"
+	body := "" +
+		"name: file-app\n" +
+		"environment: prod\n" +
+		"regions: us-east-1,us-west-2\n" +
+		"all-regions: true\n"
 	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -175,8 +183,77 @@ func TestE2E_DeployAnswerFile(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("expected exit 0, got %d. stdout=%q stderr=%q", code, stdout, stderr)
 	}
-	want := `Deploying "file-app" to prod (all regions: true)`
+	want := `Deploying "file-app" to prod (regions: us-east-1,us-west-2; all regions: true)`
 	if !strings.Contains(stdout, want) {
 		t.Errorf("expected stdout to contain %q, got %q", want, stdout)
+	}
+}
+
+// TestE2E_DeployTextField verifies the Text field type flows through
+// the subprocess: the answer reaches the bound pointer and the deploy
+// example prints a Notes line.
+func TestE2E_DeployTextField(t *testing.T) {
+	if testing.Short() || deployBin == "" {
+		t.Skip("e2e requires built binary; skipped under -short")
+	}
+	stdout, stderr, code := runDeploy(t,
+		[]string{"CI=1"},
+		"--answer", "name=textapp",
+		"--answer", "environment=staging",
+		"--answer", "regions=us-east-1",
+		"--answer", "notes=shipping the new pricing page",
+	)
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d. stdout=%q stderr=%q", code, stdout, stderr)
+	}
+	want := "Notes: shipping the new pricing page"
+	if !strings.Contains(stdout, want) {
+		t.Errorf("expected stdout to contain %q, got %q", want, stdout)
+	}
+}
+
+// TestE2E_DeployMultiSelectField exercises the MultiSelect field via
+// the subprocess: comma-separated answer parses into the slice and
+// rendered output reflects every selected region.
+func TestE2E_DeployMultiSelectField(t *testing.T) {
+	if testing.Short() || deployBin == "" {
+		t.Skip("e2e requires built binary; skipped under -short")
+	}
+	stdout, stderr, code := runDeploy(t,
+		[]string{"CI=1"},
+		"--answer", "name=multi",
+		"--answer", "environment=staging",
+		"--answer", "regions=us-east-1,us-west-2,eu-west-1",
+	)
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d. stdout=%q stderr=%q", code, stdout, stderr)
+	}
+	want := "regions: us-east-1,us-west-2,eu-west-1"
+	if !strings.Contains(stdout, want) {
+		t.Errorf("expected stdout to contain %q, got %q", want, stdout)
+	}
+}
+
+// TestE2E_DeployMultiSelectInvalidOption proves an answer that names a
+// region not in the static Options list is rejected at the subprocess
+// boundary with a field-prefixed error.
+func TestE2E_DeployMultiSelectInvalidOption(t *testing.T) {
+	if testing.Short() || deployBin == "" {
+		t.Skip("e2e requires built binary; skipped under -short")
+	}
+	stdout, stderr, code := runDeploy(t,
+		[]string{"CI=1"},
+		"--answer", "name=multi",
+		"--answer", "environment=staging",
+		"--answer", "regions=us-east-1,ap-south-1",
+	)
+	if code == 0 {
+		t.Fatalf("expected non-zero exit, got 0. stdout=%q stderr=%q", stdout, stderr)
+	}
+	if !strings.Contains(stderr, `field "regions"`) {
+		t.Errorf("expected stderr to surface field name, got %q", stderr)
+	}
+	if !strings.Contains(stderr, `"ap-south-1" is not a valid option`) {
+		t.Errorf("expected stderr to surface invalid-option error, got %q", stderr)
 	}
 }

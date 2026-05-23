@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"charm.land/huh/v2"
 	"github.com/cabljac/huhx"
@@ -13,6 +14,8 @@ func main() {
 	var (
 		name        string
 		environment string
+		notes       string
+		regions     []string
 		allRegions  bool
 	)
 
@@ -42,6 +45,22 @@ func main() {
 						Value(&environment),
 				),
 				huhx.NewGroup(
+					huhx.NewText().
+						Key("notes").
+						Title("Release notes").
+						Value(&notes).
+						Optional(),
+					huhx.NewMultiSelect[string]().
+						Key("regions").
+						Title("Target regions").
+						Options(
+							huh.NewOption("us-east-1", "us-east-1"),
+							huh.NewOption("us-west-2", "us-west-2"),
+							huh.NewOption("eu-west-1", "eu-west-1"),
+						).
+						Value(&regions),
+				),
+				huhx.NewGroup(
 					huhx.NewConfirm().
 						Key("all-regions").
 						Title("Deploy to all regions?").
@@ -61,7 +80,11 @@ func main() {
 				return err
 			}
 
-			fmt.Printf("Deploying %q to %s (all regions: %v)\n", name, environment, allRegions)
+			fmt.Printf("Deploying %q to %s (regions: %s; all regions: %v)\n",
+				name, environment, strings.Join(regions, ","), allRegions)
+			if notes != "" {
+				fmt.Printf("Notes: %s\n", notes)
+			}
 			return nil
 		},
 	}
@@ -69,8 +92,10 @@ func main() {
 	flags := cmd.Flags()
 	flags.String("name", "", "app name")
 	flags.String("environment", "", "target environment (staging|prod)")
+	flags.String("notes", "", "release notes")
+	flags.String("regions", "", "comma-separated target regions")
 	flags.Bool("all-regions", false, "deploy to all regions")
-	flags.StringSlice("answer", nil, "additional answers in key=val form (repeatable)")
+	flags.StringArray("answer", nil, "additional answers in key=val form (repeatable)")
 	flags.String("answer-file", "", "path to YAML/JSON answer file")
 	flags.Bool("non-interactive", false, "force non-interactive mode")
 
