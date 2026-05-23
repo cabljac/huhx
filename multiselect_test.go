@@ -1,6 +1,8 @@
 package huhx
 
 import (
+	"errors"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -86,4 +88,87 @@ func TestRunner_MultiSelectOptionsFunc(t *testing.T) {
 			t.Errorf("expected invalid-option message, got %q", err.Error())
 		}
 	})
+}
+
+// TestRunner_MultiSelectValidatorOnInjected confirms that the validator
+// runs on the resolved []T after parsing comma-separated answers and
+// that a returned error is wrapped with the field key.
+func TestRunner_MultiSelectValidatorOnInjected(t *testing.T) {
+	var tags []string
+	want := errors.New("too-many-tags")
+
+	form := NewForm(NewGroup(
+		NewMultiSelect[string]().Key("tags").
+			Options(
+				huh.NewOption("a", "a"),
+				huh.NewOption("b", "b"),
+				huh.NewOption("c", "c"),
+			).
+			Value(&tags).
+			Validate(func(v []string) error {
+				if len(v) > 2 {
+					return want
+				}
+				return nil
+			}),
+	))
+
+	r := New(form,
+		WithNonInteractive(Always),
+		WithAnswers(map[string]any{"tags": "a,b,c"}),
+	)
+
+	err := r.Run()
+	if err == nil {
+		t.Fatal("expected validator error")
+	}
+	if !strings.Contains(err.Error(), `field "tags"`) {
+		t.Errorf("expected field-prefixed error, got %q", err.Error())
+	}
+	if !errors.Is(err, want) {
+		t.Errorf("expected validator sentinel wrapped, got %v", err)
+	}
+}
+
+// TestRunner_MultiSelectCommaEdgeCases pins documented parser behavior:
+// empty parts (consecutive commas or leading/trailing comma) are skipped
+// rather than causing an "is not a valid option" error.
+func TestRunner_MultiSelectCommaEdgeCases(t *testing.T) {
+	cases := map[string]struct {
+		answer string
+		want   []string
+	}{
+		"consecutive commas":    {"a,,b", []string{"a", "b"}},
+		"leading comma":         {",a,b", []string{"a", "b"}},
+		"trailing comma":        {"a,b,", []string{"a", "b"}},
+		"surrounding whitespace": {" a ,  b ", []string{"a", "b"}},
+		"all empty":             {",,,", []string{}},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			var got []string
+			form := NewForm(NewGroup(
+				NewMultiSelect[string]().Key("xs").
+					Options(
+						huh.NewOption("a", "a"),
+						huh.NewOption("b", "b"),
+					).
+					Value(&got).
+					Optional(),
+			))
+
+			r := New(form,
+				WithNonInteractive(Always),
+				WithAnswers(map[string]any{"xs": tc.answer}),
+			)
+
+			if err := r.Run(); err != nil {
+				t.Fatalf("expected no error, got %v", err)
+			}
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Errorf("expected %v, got %v", tc.want, got)
+			}
+		})
+	}
 }
