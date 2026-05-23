@@ -132,9 +132,9 @@ func (i *Input) Optional() *Input {
 	return i
 }
 
-func (i *Input) key() string        { return i.k }
+func (i *Input) key() string         { return i.k }
 func (i *Input) huhField() huh.Field { return i.inner }
-func (i *Input) required() bool     { return !i.optional }
+func (i *Input) required() bool      { return !i.optional }
 
 func (i *Input) set(value string) error {
 	if i.accessor != nil {

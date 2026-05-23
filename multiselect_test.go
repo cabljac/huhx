@@ -138,11 +138,11 @@ func TestRunner_MultiSelectCommaEdgeCases(t *testing.T) {
 		answer string
 		want   []string
 	}{
-		"consecutive commas":    {"a,,b", []string{"a", "b"}},
-		"leading comma":         {",a,b", []string{"a", "b"}},
-		"trailing comma":        {"a,b,", []string{"a", "b"}},
+		"consecutive commas":     {"a,,b", []string{"a", "b"}},
+		"leading comma":          {",a,b", []string{"a", "b"}},
+		"trailing comma":         {"a,b,", []string{"a", "b"}},
 		"surrounding whitespace": {" a ,  b ", []string{"a", "b"}},
-		"all empty":             {",,,", []string{}},
+		"all empty":              {",,,", []string{}},
 	}
 
 	for name, tc := range cases {
