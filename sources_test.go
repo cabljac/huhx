@@ -16,7 +16,7 @@ func TestRunner_AnswerPairMalformed(t *testing.T) {
 	))
 
 	cmd := &cobra.Command{Use: "t"}
-	cmd.Flags().StringSlice("answer", nil, "")
+	cmd.Flags().StringArray("answer", nil, "")
 	if err := cmd.ParseFlags([]string{"--answer", "name-only-no-equals"}); err != nil {
 		t.Fatal(err)
 	}

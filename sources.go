@@ -32,8 +32,12 @@ func loadAnswerFile(path string) (map[string]string, error) {
 }
 
 // cobraAnswerPairs reads --answer key=val pairs from the cobra command's
-// StringSlice flag named "answer". Returns an empty (non-nil) map when
-// no command or no flag is configured so callers can always index safely.
+// StringArray flag named "answer". StringArray is required rather than
+// StringSlice because StringSlice splits each value on commas, which
+// would corrupt MultiSelect answers like
+// --answer regions=us-east-1,us-west-2. Returns an empty (non-nil) map
+// when no command or no flag is configured so callers can always index
+// safely.
 func cobraAnswerPairs(cmd *cobra.Command) (map[string]string, error) {
 	if cmd == nil {
 		return map[string]string{}, nil
@@ -42,7 +46,7 @@ func cobraAnswerPairs(cmd *cobra.Command) (map[string]string, error) {
 	if f == nil {
 		return map[string]string{}, nil
 	}
-	raw, err := cmd.Flags().GetStringSlice("answer")
+	raw, err := cmd.Flags().GetStringArray("answer")
 	if err != nil {
 		return nil, fmt.Errorf("read --answer: %w", err)
 	}

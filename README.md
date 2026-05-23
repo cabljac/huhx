@@ -62,7 +62,7 @@ func main() {
     flags.String("name", "", "")
     flags.String("environment", "", "")
     flags.Bool("all-regions", false, "")
-    flags.StringSlice("answer", nil, "additional key=val answers")
+    flags.StringArray("answer", nil, "additional key=val answers")
     flags.Bool("non-interactive", false, "force non-interactive mode")
 
     if err := cmd.Execute(); err != nil {
@@ -103,7 +103,7 @@ When non-interactive, each field's answer is resolved in order:
 
 1. `WithAnswers(map[string]any{...})` — programmatic injection.
 2. Cobra named flag matching the field key (e.g. `--name`).
-3. `--answer key=val` entries from a `StringSlice` flag named `answer`.
+3. `--answer key=val` entries from a `StringArray` flag named `answer`.
 4. Answer file from `WithAnswerFile(path)` (YAML or JSON).
 5. Environment variable `<PREFIX>_<KEY>` (with `WithEnvPrefix`).
 6. Otherwise the field is reported as missing.

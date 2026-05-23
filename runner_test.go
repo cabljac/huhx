@@ -252,7 +252,7 @@ func TestRunner_FullPrecedenceChain(t *testing.T) {
 
 	cmd := &cobra.Command{Use: "t"}
 	cmd.Flags().String("flag-key", "", "")
-	cmd.Flags().StringSlice("answer", nil, "")
+	cmd.Flags().StringArray("answer", nil, "")
 	if err := cmd.ParseFlags([]string{
 		"--flag-key", "from-flag",
 		"--answer", "answer-key=from-answer",
