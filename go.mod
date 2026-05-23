@@ -38,4 +38,13 @@ require (
 	golang.org/x/sys v0.43.0 // indirect
 )
 
+// huhx depends on two accessors (Group.HideFunc, Select/MultiSelect.GetOptions)
+// from a pending PR against charmbracelet/huh. Until that PR merges,
+// huhx is local-dev-only and requires a sibling checkout of the patched
+// fork at ../huh on the feat/expose-internals-for-wrapper branch.
+//
+// Go's v2 module rules forbid pinning the fork via a version tag because
+// the repo path github.com/cabljac/huh lacks the /v2 suffix required by
+// the module path charm.land/huh/v2. Once the upstream PR ships, this
+// replace directive is dropped entirely.
 replace charm.land/huh/v2 => ../huh

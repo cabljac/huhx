@@ -7,7 +7,21 @@ Build a form once with the huhx builders. The runner drives it
 interactively on a TTY and falls back to CLI flags, env vars, and answer
 files in CI.
 
-## Install
+## Status: pre-v0.1
+
+huhx depends on two read-only accessors (`Group.HideFunc`,
+`Select/MultiSelect.GetOptions`) from a pending PR against
+charmbracelet/huh. Until that PR merges:
+
+- `go.mod` uses a `replace` directive pointing at `../huh`, so huhx is
+  local-dev-only.
+- A sibling checkout of the patched fork (branch
+  `feat/expose-internals-for-wrapper`) at `../huh` is required.
+
+Once the upstream PR ships in a tagged huh release, the `replace`
+directive is dropped and huhx v0.1 is cut against upstream.
+
+## Install (post-v0.1)
 
 ```bash
 go get github.com/cabljac/huhx
