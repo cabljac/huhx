@@ -9,6 +9,7 @@ type Input struct {
 	inner    *huh.Input
 	k        string
 	value    *string
+	accessor huh.Accessor[string]
 	validate func(string) error
 	optional bool
 }
@@ -52,7 +53,69 @@ func (i *Input) CharLimit(n int) *Input {
 // Value binds a destination string pointer.
 func (i *Input) Value(v *string) *Input {
 	i.value = v
+	i.accessor = huh.NewPointerAccessor(v)
 	i.inner.Value(v)
+	return i
+}
+
+// Accessor sets a custom accessor for reading and writing the field value.
+func (i *Input) Accessor(a huh.Accessor[string]) *Input {
+	i.accessor = a
+	i.inner.Accessor(a)
+	return i
+}
+
+// TitleFunc sets a dynamic title function.
+func (i *Input) TitleFunc(f func() string, bindings any) *Input {
+	i.inner.TitleFunc(f, bindings)
+	return i
+}
+
+// DescriptionFunc sets a dynamic description function.
+func (i *Input) DescriptionFunc(f func() string, bindings any) *Input {
+	i.inner.DescriptionFunc(f, bindings)
+	return i
+}
+
+// Prompt sets the input prompt.
+func (i *Input) Prompt(s string) *Input {
+	i.inner.Prompt(s)
+	return i
+}
+
+// Suggestions sets the autocomplete suggestions.
+func (i *Input) Suggestions(suggestions []string) *Input {
+	i.inner.Suggestions(suggestions)
+	return i
+}
+
+// SuggestionsFunc sets a dynamic suggestions function.
+func (i *Input) SuggestionsFunc(f func() []string, bindings any) *Input {
+	i.inner.SuggestionsFunc(f, bindings)
+	return i
+}
+
+// EchoMode sets the echo mode for the input.
+func (i *Input) EchoMode(mode huh.EchoMode) *Input {
+	i.inner.EchoMode(mode)
+	return i
+}
+
+// Password toggles password masking for the input.
+func (i *Input) Password(password bool) *Input {
+	i.inner.Password(password)
+	return i
+}
+
+// PlaceholderFunc sets a dynamic placeholder function.
+func (i *Input) PlaceholderFunc(f func() string, bindings any) *Input {
+	i.inner.PlaceholderFunc(f, bindings)
+	return i
+}
+
+// Inline toggles inline rendering for the input.
+func (i *Input) Inline(inline bool) *Input {
+	i.inner.Inline(inline)
 	return i
 }
 
@@ -74,7 +137,9 @@ func (i *Input) huhField() huh.Field { return i.inner }
 func (i *Input) required() bool     { return !i.optional }
 
 func (i *Input) set(value string) error {
-	if i.value != nil {
+	if i.accessor != nil {
+		i.accessor.Set(value)
+	} else if i.value != nil {
 		*i.value = value
 	}
 	if i.validate != nil {
