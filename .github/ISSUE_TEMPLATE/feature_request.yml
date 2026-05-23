@@ -1,0 +1,49 @@
+name: Feature request
+description: A new capability, API addition, or behavior change.
+title: "feat: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        huhx mirrors huh's API and adds non-interactive execution.
+        Before filing, please confirm the request isn't satisfied by
+        an existing huh method that should just be exposed as a
+        forwarder.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What can't you do today, and why does it matter?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed API
+      description: |
+        Sketch the public surface. Include method signatures and a
+        usage snippet if you can.
+      render: go
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds you've tried, related libraries, why they don't fit.
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - API parity with an existing huh method
+        - New non-interactive surface (source, mode, error path)
+        - Behavior change to existing API
+        - Other
+    validations:
+      required: true
