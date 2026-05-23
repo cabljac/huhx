@@ -3,7 +3,7 @@ module github.com/cabljac/huhx
 go 1.25.8
 
 require (
-	charm.land/huh/v2 v2.0.0-00010101000000-000000000000
+	charm.land/huh/v2 v2.0.3
 	github.com/mattn/go-isatty v0.0.22
 	github.com/spf13/cobra v1.10.2
 	gopkg.in/yaml.v3 v3.0.1
@@ -37,14 +37,3 @@ require (
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.43.0 // indirect
 )
-
-// huhx depends on two accessors (Group.HideFunc, Select/MultiSelect.GetOptions)
-// from a pending PR against charmbracelet/huh. Until that PR merges,
-// huhx is local-dev-only and requires a sibling checkout of the patched
-// fork at ../huh on the feat/expose-internals-for-wrapper branch.
-//
-// Go's v2 module rules forbid pinning the fork via a version tag because
-// the repo path github.com/cabljac/huh lacks the /v2 suffix required by
-// the module path charm.land/huh/v2. Once the upstream PR ships, this
-// replace directive is dropped entirely.
-replace charm.land/huh/v2 => ../huh

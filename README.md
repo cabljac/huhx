@@ -7,25 +7,13 @@ Build a form once with the huhx builders. The runner drives it
 interactively on a TTY and falls back to CLI flags, env vars, and answer
 files in CI.
 
-## Status: pre-v0.1
-
-huhx depends on two read-only accessors (`Group.HideFunc`,
-`Select/MultiSelect.GetOptions`) from a pending PR against
-charmbracelet/huh. Until that PR merges:
-
-- `go.mod` uses a `replace` directive pointing at `../huh`, so huhx is
-  local-dev-only.
-- A sibling checkout of the patched fork (branch
-  `feat/expose-internals-for-wrapper`) at `../huh` is required.
-
-Once the upstream PR ships in a tagged huh release, the `replace`
-directive is dropped and huhx v0.1 is cut against upstream.
-
-## Install (post-v0.1)
+## Install
 
 ```bash
 go get github.com/cabljac/huhx
 ```
+
+Depends on upstream `charm.land/huh/v2` — no fork required.
 
 ## Quick start
 
@@ -139,6 +127,25 @@ without going through huh internals.
 `MultiSelect` accepts comma-separated answers (`a,b,c`).
 
 `Confirm` parses with `strconv.ParseBool`.
+
+## Static vs dynamic options
+
+`Select` and `MultiSelect` support both:
+
+- `Options(opts...)` — static list captured at construction time.
+- `OptionsFunc(f, bindings)` — dynamic provider re-evaluated lazily at
+  injection time. Useful when the available choices depend on an
+  earlier field's value (e.g. State depending on Country).
+
+When using `OptionsFunc`, the dependent field must live in a **later
+group** than its source field. The non-interactive runner walks groups
+in order and writes each field's value before later groups resolve, so
+closures capturing earlier-field pointers see the right values. This is
+the same constraint huh's interactive `bindings` machinery already
+enforces.
+
+Calling `Options(...)` clears any prior `OptionsFunc(...)` and vice
+versa — last setter wins.
 
 ## Conditional groups
 
