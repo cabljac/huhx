@@ -21,6 +21,7 @@ type MultiSelect[T comparable] struct {
 	optional    bool
 	options     []huh.Option[T]
 	optionsFunc func() []huh.Option[T]
+	accessor    huh.Accessor[[]T]
 }
 
 // NewMultiSelect returns a new MultiSelect wrapping huh.NewMultiSelect[T]().
@@ -44,6 +45,42 @@ func (m *MultiSelect[T]) Title(t string) *MultiSelect[T] {
 // Description sets the field description.
 func (m *MultiSelect[T]) Description(d string) *MultiSelect[T] {
 	m.inner.Description(d)
+	return m
+}
+
+// TitleFunc sets a dynamic title provider re-evaluated on bindings change.
+func (m *MultiSelect[T]) TitleFunc(f func() string, bindings any) *MultiSelect[T] {
+	m.inner.TitleFunc(f, bindings)
+	return m
+}
+
+// DescriptionFunc sets a dynamic description provider re-evaluated on bindings change.
+func (m *MultiSelect[T]) DescriptionFunc(f func() string, bindings any) *MultiSelect[T] {
+	m.inner.DescriptionFunc(f, bindings)
+	return m
+}
+
+// Filterable toggles filtering UI.
+func (m *MultiSelect[T]) Filterable(filterable bool) *MultiSelect[T] {
+	m.inner.Filterable(filterable)
+	return m
+}
+
+// Filtering sets the current filtering state.
+func (m *MultiSelect[T]) Filtering(filtering bool) *MultiSelect[T] {
+	m.inner.Filtering(filtering)
+	return m
+}
+
+// Width sets the field width.
+func (m *MultiSelect[T]) Width(w int) *MultiSelect[T] {
+	m.inner.Width(w)
+	return m
+}
+
+// Height sets the field height.
+func (m *MultiSelect[T]) Height(h int) *MultiSelect[T] {
+	m.inner.Height(h)
 	return m
 }
 
@@ -80,7 +117,15 @@ func (m *MultiSelect[T]) Limit(n int) *MultiSelect[T] {
 // Value binds a destination slice pointer.
 func (m *MultiSelect[T]) Value(v *[]T) *MultiSelect[T] {
 	m.value = v
+	m.accessor = huh.NewPointerAccessor(v)
 	m.inner.Value(v)
+	return m
+}
+
+// Accessor binds a custom accessor for reading and writing the value.
+func (m *MultiSelect[T]) Accessor(a huh.Accessor[[]T]) *MultiSelect[T] {
+	m.accessor = a
+	m.inner.Accessor(a)
 	return m
 }
 
@@ -137,7 +182,9 @@ func (m *MultiSelect[T]) set(value string) error {
 			return fmt.Errorf("%q is not a valid option", p)
 		}
 	}
-	if m.value != nil {
+	if m.accessor != nil {
+		m.accessor.Set(result)
+	} else if m.value != nil {
 		*m.value = result
 	}
 	if m.validate != nil {
