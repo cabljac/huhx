@@ -7,14 +7,20 @@ import (
 	"charm.land/huh/v2"
 )
 
-// MultiSelect wraps *huh.MultiSelect[T] for headless drive. The non-interactive
-// answer is a comma-separated string of option keys or values.
+// MultiSelect wraps *huh.MultiSelect[T] for headless drive. The
+// non-interactive answer is a comma-separated string of option keys or
+// values. Options provided via Options(...) are captured at construction
+// time; options provided via OptionsFunc(...) are re-evaluated lazily
+// inside set() so closures that depend on earlier fields' values resolve
+// correctly.
 type MultiSelect[T comparable] struct {
-	inner    *huh.MultiSelect[T]
-	k        string
-	value    *[]T
-	validate func([]T) error
-	optional bool
+	inner       *huh.MultiSelect[T]
+	k           string
+	value       *[]T
+	validate    func([]T) error
+	optional    bool
+	options     []huh.Option[T]
+	optionsFunc func() []huh.Option[T]
 }
 
 // NewMultiSelect returns a new MultiSelect wrapping huh.NewMultiSelect[T]().
@@ -41,9 +47,27 @@ func (m *MultiSelect[T]) Description(d string) *MultiSelect[T] {
 	return m
 }
 
-// Options sets the available options.
+// Options sets the available options statically. The wrapper retains a
+// copy so the non-interactive runner can match answers without going
+// through huh internals. Calling Options clears any previously set
+// OptionsFunc.
 func (m *MultiSelect[T]) Options(opts ...huh.Option[T]) *MultiSelect[T] {
+	m.options = opts
+	m.optionsFunc = nil
 	m.inner.Options(opts...)
+	return m
+}
+
+// OptionsFunc sets a dynamic options provider. The provider is forwarded
+// to huh for interactive mode and is re-evaluated by the non-interactive
+// runner at injection time so closures that depend on earlier fields'
+// values resolve correctly. The dependent field must live in a later
+// group than its source field (same rule as huh's interactive bindings).
+// Calling OptionsFunc clears any previously set static Options.
+func (m *MultiSelect[T]) OptionsFunc(f func() []huh.Option[T], bindings any) *MultiSelect[T] {
+	m.optionsFunc = f
+	m.options = nil
+	m.inner.OptionsFunc(f, bindings)
 	return m
 }
 
@@ -77,13 +101,23 @@ func (m *MultiSelect[T]) key() string         { return m.k }
 func (m *MultiSelect[T]) huhField() huh.Field { return m.inner }
 func (m *MultiSelect[T]) required() bool      { return !m.optional }
 
+// currentOptions returns the option slice to match against. If
+// OptionsFunc was set the closure is invoked now so it can read any
+// earlier-field values that have already been written by the runner.
+func (m *MultiSelect[T]) currentOptions() []huh.Option[T] {
+	if m.optionsFunc != nil {
+		return m.optionsFunc()
+	}
+	return m.options
+}
+
 // set parses value as a comma-separated list of option references. Each
 // part matches an option whose Key equals it or whose Value formatted as
 // fmt.Sprintf("%v", v) equals it. The %v fallback works cleanly for
 // primitive T but may be ambiguous for struct types or types with a
 // custom String() method — set Key explicitly for those.
 func (m *MultiSelect[T]) set(value string) error {
-	opts := m.inner.GetOptions()
+	opts := m.currentOptions()
 	parts := strings.Split(value, ",")
 	result := make([]T, 0, len(parts))
 	for _, p := range parts {

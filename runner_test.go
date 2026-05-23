@@ -347,3 +347,86 @@ func TestRunner_Optional(t *testing.T) {
 		t.Errorf("expected nickname zero, got %q", nickname)
 	}
 }
+
+func TestRunner_OptionsFuncDependsOnEarlierField(t *testing.T) {
+	var country, state string
+
+	states := map[string][]huh.Option[string]{
+		"US": {huh.NewOption("California", "CA"), huh.NewOption("Texas", "TX")},
+		"CA": {huh.NewOption("Ontario", "ON"), huh.NewOption("Quebec", "QC")},
+	}
+
+	form := NewForm(
+		NewGroup(
+			NewSelect[string]().Key("country").
+				Options(
+					huh.NewOption("United States", "US"),
+					huh.NewOption("Canada", "CA"),
+				).Value(&country),
+		),
+		NewGroup(
+			NewSelect[string]().Key("state").
+				OptionsFunc(func() []huh.Option[string] {
+					return states[country]
+				}, &country).
+				Value(&state),
+		),
+	)
+
+	r := New(form,
+		WithNonInteractive(Always),
+		WithAnswers(map[string]any{
+			"country": "US",
+			"state":   "TX",
+		}),
+	)
+	if err := r.Run(); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if country != "US" {
+		t.Errorf("expected country=US, got %q", country)
+	}
+	if state != "TX" {
+		t.Errorf("expected state=TX, got %q", state)
+	}
+}
+
+func TestRunner_OptionsFuncRejectsUnknown(t *testing.T) {
+	var country, state string
+
+	form := NewForm(
+		NewGroup(
+			NewSelect[string]().Key("country").
+				Options(huh.NewOption("United States", "US")).
+				Value(&country),
+		),
+		NewGroup(
+			NewSelect[string]().Key("state").
+				OptionsFunc(func() []huh.Option[string] {
+					if country == "US" {
+						return []huh.Option[string]{huh.NewOption("California", "CA")}
+					}
+					return nil
+				}, &country).
+				Value(&state),
+		),
+	)
+
+	r := New(form,
+		WithNonInteractive(Always),
+		WithAnswers(map[string]any{
+			"country": "US",
+			"state":   "ON",
+		}),
+	)
+	err := r.Run()
+	if err == nil {
+		t.Fatal("expected error for option not present in dynamic list")
+	}
+	if !strings.Contains(err.Error(), `field "state"`) {
+		t.Errorf("expected field-prefixed error, got %q", err.Error())
+	}
+	if !strings.Contains(err.Error(), `"ON" is not a valid option`) {
+		t.Errorf("expected invalid-option message, got %q", err.Error())
+	}
+}
