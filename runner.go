@@ -93,11 +93,17 @@ func (r *Runner) runNonInteractive() error {
 	}
 
 	var missing []string
-	for _, g := range r.form.groups {
+	for gi, g := range r.form.groups {
 		if g.hide != nil && g.hide() {
 			continue
 		}
-		for _, f := range g.fields {
+		for fi, f := range g.fields {
+			if f.key() == "" {
+				if f.required() {
+					return fmt.Errorf("required field at group %d, position %d has no Key() set; call .Key(\"...\") on it to enable non-interactive mode", gi, fi)
+				}
+				continue
+			}
 			ans, ok := r.resolve(f.key(), fileAns, cliAns)
 			if !ok {
 				if f.required() {

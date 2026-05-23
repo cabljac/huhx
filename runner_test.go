@@ -430,3 +430,54 @@ func TestRunner_OptionsFuncRejectsUnknown(t *testing.T) {
 		t.Errorf("expected invalid-option message, got %q", err.Error())
 	}
 }
+
+func TestRunner_KeylessRequiredFieldErrors(t *testing.T) {
+	var name string
+	// Second field has no Key(); required by default. Runner must surface
+	// a clear error pointing at its position rather than silently treating
+	// it as a missing answer with an empty flag name.
+	form := NewForm(NewGroup(
+		NewInput().Key("first").Value(&name),
+		NewInput().Value(&name), // keyless
+	))
+
+	r := New(form,
+		WithNonInteractive(Always),
+		WithAnswers(map[string]any{"first": "alice"}),
+	)
+
+	err := r.Run()
+	if err == nil {
+		t.Fatal("expected error for keyless required field")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "no Key() set") {
+		t.Errorf("expected keyless message, got %q", msg)
+	}
+	if !strings.Contains(msg, "group 0") || !strings.Contains(msg, "position 1") {
+		t.Errorf("expected field location, got %q", msg)
+	}
+}
+
+func TestRunner_KeylessOptionalFieldSkipped(t *testing.T) {
+	var name, nickname string
+	form := NewForm(NewGroup(
+		NewInput().Key("name").Value(&name),
+		NewInput().Value(&nickname).Optional(), // keyless but optional
+	))
+
+	r := New(form,
+		WithNonInteractive(Always),
+		WithAnswers(map[string]any{"name": "alice"}),
+	)
+
+	if err := r.Run(); err != nil {
+		t.Fatalf("expected no error for keyless optional field, got %v", err)
+	}
+	if name != "alice" {
+		t.Errorf("expected name=alice, got %q", name)
+	}
+	if nickname != "" {
+		t.Errorf("expected nickname zero, got %q", nickname)
+	}
+}
