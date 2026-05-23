@@ -1,9 +1,9 @@
-package huhless
+package huhx
 
 import "charm.land/huh/v2"
 
 // Group wraps *huh.Group and tracks the hide predicate alongside the
-// huhless field list so the non-interactive runner can walk groups in
+// huhx field list so the non-interactive runner can walk groups in
 // order, skip hidden ones, and dispatch answers to the correct field.
 type Group struct {
 	inner  *huh.Group
@@ -11,7 +11,7 @@ type Group struct {
 	fields []field
 }
 
-// NewGroup builds a Group from huhless field wrappers.
+// NewGroup builds a Group from huhx field wrappers.
 func NewGroup(fields ...field) *Group {
 	huhFields := make([]huh.Field, len(fields))
 	for i, f := range fields {

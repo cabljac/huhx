@@ -1,4 +1,4 @@
-package huhless
+package huhx
 
 import "github.com/spf13/cobra"
 

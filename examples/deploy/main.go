@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"charm.land/huh/v2"
-	"github.com/cabljac/huhless"
+	"github.com/cabljac/huhx"
 	"github.com/spf13/cobra"
 )
 
@@ -20,9 +20,9 @@ func main() {
 		Use:   "deploy",
 		Short: "Deploy an app",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			form := huhless.NewForm(
-				huhless.NewGroup(
-					huhless.NewInput().
+			form := huhx.NewForm(
+				huhx.NewGroup(
+					huhx.NewInput().
 						Key("name").
 						Title("App name").
 						Value(&name).
@@ -32,7 +32,7 @@ func main() {
 							}
 							return nil
 						}),
-					huhless.NewSelect[string]().
+					huhx.NewSelect[string]().
 						Key("environment").
 						Title("Target environment").
 						Options(
@@ -41,8 +41,8 @@ func main() {
 						).
 						Value(&environment),
 				),
-				huhless.NewGroup(
-					huhless.NewConfirm().
+				huhx.NewGroup(
+					huhx.NewConfirm().
 						Key("all-regions").
 						Title("Deploy to all regions?").
 						Value(&allRegions),
@@ -52,10 +52,10 @@ func main() {
 			)
 
 			answerFile, _ := cmd.Flags().GetString("answer-file")
-			runner := huhless.New(form,
-				huhless.WithEnvPrefix("DEPLOY"),
-				huhless.WithCobraFlags(cmd),
-				huhless.WithAnswerFile(answerFile),
+			runner := huhx.New(form,
+				huhx.WithEnvPrefix("DEPLOY"),
+				huhx.WithCobraFlags(cmd),
+				huhx.WithAnswerFile(answerFile),
 			)
 			if err := runner.Run(); err != nil {
 				return err

@@ -1,4 +1,4 @@
-package huhless
+package huhx
 
 // Mode controls how the runner chooses between interactive and
 // non-interactive execution.

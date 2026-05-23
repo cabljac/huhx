@@ -1,4 +1,4 @@
-package huhless
+package huhx
 
 import "charm.land/huh/v2"
 

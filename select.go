@@ -1,4 +1,4 @@
-package huhless
+package huhx
 
 import (
 	"fmt"

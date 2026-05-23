@@ -1,16 +1,16 @@
-# huhless
+# huhx
 
 Thin builder layer on top of [charmbracelet/huh](https://github.com/charmbracelet/huh)
 that adds non-interactive / headless execution.
 
-Build a form once with the huhless builders. The runner drives it
+Build a form once with the huhx builders. The runner drives it
 interactively on a TTY and falls back to CLI flags, env vars, and answer
 files in CI.
 
 ## Install
 
 ```bash
-go get github.com/cabljac/huhless
+go get github.com/cabljac/huhx
 ```
 
 ## Quick start
@@ -23,7 +23,7 @@ import (
     "os"
 
     "charm.land/huh/v2"
-    "github.com/cabljac/huhless"
+    "github.com/cabljac/huhx"
     "github.com/spf13/cobra"
 )
 
@@ -37,23 +37,23 @@ func main() {
     cmd := &cobra.Command{
         Use: "deploy",
         RunE: func(cmd *cobra.Command, args []string) error {
-            form := huhless.NewForm(
-                huhless.NewGroup(
-                    huhless.NewInput().Key("name").Title("App name").Value(&name),
-                    huhless.NewSelect[string]().Key("environment").Title("Environment").
+            form := huhx.NewForm(
+                huhx.NewGroup(
+                    huhx.NewInput().Key("name").Title("App name").Value(&name),
+                    huhx.NewSelect[string]().Key("environment").Title("Environment").
                         Options(
                             huh.NewOption("staging", "staging"),
                             huh.NewOption("prod", "prod"),
                         ).Value(&environment),
                 ),
-                huhless.NewGroup(
-                    huhless.NewConfirm().Key("all-regions").Title("Deploy to all regions?").Value(&allRegions),
+                huhx.NewGroup(
+                    huhx.NewConfirm().Key("all-regions").Title("Deploy to all regions?").Value(&allRegions),
                 ).WithHide(func() bool { return environment != "prod" }),
             )
 
-            runner := huhless.New(form,
-                huhless.WithEnvPrefix("DEPLOY"),
-                huhless.WithCobraFlags(cmd),
+            runner := huhx.New(form,
+                huhx.WithEnvPrefix("DEPLOY"),
+                huhx.WithCobraFlags(cmd),
             )
             return runner.Run()
         },
@@ -87,7 +87,7 @@ CI=1 go run ./examples/deploy \
 
 ## Mode selection
 
-`huhless.AutoDetect` (default) picks non-interactive when any of:
+`huhx.AutoDetect` (default) picks non-interactive when any of:
 
 1. `NON_INTERACTIVE=1` or `CI=1` is set.
 2. stdin is not a TTY.
@@ -95,7 +95,7 @@ CI=1 go run ./examples/deploy \
 
 Otherwise the runner delegates to `huh.Form.Run()`.
 
-Force the mode with `huhless.WithNonInteractive(huhless.Always | huhless.Never)`.
+Force the mode with `huhx.WithNonInteractive(huhx.Always | huhx.Never)`.
 
 ## Answer source precedence
 
@@ -110,7 +110,7 @@ When non-interactive, each field's answer is resolved in order:
 
 ## Field types
 
-| huhless | wraps |
+| huhx | wraps |
 |---|---|
 | `Input` | `*huh.Input` |
 | `Text` | `*huh.Text` |

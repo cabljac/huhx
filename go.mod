@@ -1,4 +1,4 @@
-module github.com/cabljac/huhless
+module github.com/cabljac/huhx
 
 go 1.25.8
 
