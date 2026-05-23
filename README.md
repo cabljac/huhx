@@ -172,3 +172,81 @@ missing required answers for:
   --name        (env: DEPLOY_NAME)
   --environment (env: DEPLOY_ENVIRONMENT)
 ```
+
+## Migrating from huh
+
+Migration is mostly mechanical — one decision per field.
+
+### 1. Import + constructors
+
+```go
+// before
+import "charm.land/huh/v2"
+
+form := huh.NewForm(
+    huh.NewGroup(
+        huh.NewInput().Title("Name").Value(&name),
+    ),
+)
+if err := form.Run(); err != nil { ... }
+```
+
+```go
+// after
+import (
+    "charm.land/huh/v2"
+    "github.com/cabljac/huhx"
+)
+
+form := huhx.NewForm(
+    huhx.NewGroup(
+        huhx.NewInput().Key("name").Title("Name").Value(&name),
+    ),
+)
+runner := huhx.New(form,
+    huhx.WithEnvPrefix("MYAPP"),
+    huhx.WithCobraFlags(cmd), // if cobra is wired
+)
+if err := runner.Run(); err != nil { ... }
+```
+
+Keep `huh.NewOption`, `huh.Option[T]`, `huh.Accessor[T]`, theme types,
+etc. — huhx reuses huh's types unchanged.
+
+### 2. The Key decision
+
+Every field that should be drivable non-interactively needs a `.Key(k)`.
+The key becomes the CLI flag name (`--my-key`), the environment variable
+suffix (`PREFIX_MY_KEY`), and the answer file key. Pick keys that read
+well as flags — lowercase, hyphen-separated.
+
+```go
+huhx.NewInput().Key("repo-name").Title("Repository name").Value(&repoName)
+// non-interactive: --answer repo-name=...   MYAPP_REPO_NAME=...
+```
+
+Fields without `.Key()` still work in interactive mode — huhx forwards
+them to huh as normal. Non-interactive behavior:
+
+- **Required keyless field** → runner errors with
+  `required field at group N, position M has no Key() set; call .Key("...") on it to enable non-interactive mode`.
+  Run the binary once in non-interactive mode, see which field needs a
+  key, add it, repeat.
+- **Optional keyless field** (`.Optional()`) → silently skipped in
+  non-interactive mode.
+
+That's the whole migration loop. The rest is search-and-replace.
+
+### 3. WithCobraFlags wiring (cobra users)
+
+Register matching flags on your cobra command so huhx can read named
+flag values:
+
+```go
+cmd.Flags().String("repo-name", "", "")
+cmd.Flags().StringArray("answer", nil, "additional answers in key=val form")
+cmd.Flags().String("answer-file", "", "path to YAML/JSON answer file")
+cmd.Flags().Bool("non-interactive", false, "force non-interactive mode")
+```
+
+Then pass `huhx.WithCobraFlags(cmd)` to the runner.
