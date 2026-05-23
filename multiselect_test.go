@@ -172,3 +172,39 @@ func TestRunner_MultiSelectCommaEdgeCases(t *testing.T) {
 		})
 	}
 }
+
+func TestMultiSelect_Forwarders(t *testing.T) {
+	m := NewMultiSelect[string]().
+		Key("k").
+		Title("t").
+		TitleFunc(func() string { return "tf" }, nil).
+		Description("d").
+		DescriptionFunc(func() string { return "df" }, nil).
+		Options(huh.NewOption("a", "a"), huh.NewOption("b", "b")).
+		Limit(2).
+		Filterable(false).
+		Filtering(false).
+		Width(40).
+		Height(10)
+	if m == nil {
+		t.Fatal("expected non-nil multiselect after forwarder chain")
+	}
+}
+
+func TestMultiSelect_AccessorWritesValue(t *testing.T) {
+	var dst []string
+	acc := huh.NewPointerAccessor(&dst)
+	form := NewForm(NewGroup(
+		NewMultiSelect[string]().
+			Key("tags").
+			Options(huh.NewOption("a", "a"), huh.NewOption("b", "b"), huh.NewOption("c", "c")).
+			Accessor(acc),
+	))
+	r := New(form, WithNonInteractive(Always), WithAnswers(map[string]any{"tags": "a,c"}))
+	if err := r.Run(); err != nil {
+		t.Fatal(err)
+	}
+	if len(dst) != 2 || dst[0] != "a" || dst[1] != "c" {
+		t.Errorf("expected accessor to receive [a c], got %v", dst)
+	}
+}
