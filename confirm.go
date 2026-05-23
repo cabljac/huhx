@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"charm.land/huh/v2"
+	"charm.land/lipgloss/v2"
 )
 
 // Confirm wraps *huh.Confirm for headless drive.
@@ -12,6 +13,7 @@ type Confirm struct {
 	inner    *huh.Confirm
 	k        string
 	value    *bool
+	accessor huh.Accessor[bool]
 	validate func(bool) error
 	optional bool
 }
@@ -55,7 +57,39 @@ func (c *Confirm) Negative(s string) *Confirm {
 // Value binds a destination bool pointer.
 func (c *Confirm) Value(v *bool) *Confirm {
 	c.value = v
+	c.accessor = huh.NewPointerAccessor(v)
 	c.inner.Value(v)
+	return c
+}
+
+// Accessor sets a custom accessor for the field value.
+func (c *Confirm) Accessor(a huh.Accessor[bool]) *Confirm {
+	c.accessor = a
+	c.inner.Accessor(a)
+	return c
+}
+
+// TitleFunc sets a dynamic title function with bindings.
+func (c *Confirm) TitleFunc(f func() string, bindings any) *Confirm {
+	c.inner.TitleFunc(f, bindings)
+	return c
+}
+
+// DescriptionFunc sets a dynamic description function with bindings.
+func (c *Confirm) DescriptionFunc(f func() string, bindings any) *Confirm {
+	c.inner.DescriptionFunc(f, bindings)
+	return c
+}
+
+// Inline sets whether the confirm renders inline.
+func (c *Confirm) Inline(inline bool) *Confirm {
+	c.inner.Inline(inline)
+	return c
+}
+
+// WithButtonAlignment sets the button alignment position.
+func (c *Confirm) WithButtonAlignment(p lipgloss.Position) *Confirm {
+	c.inner.WithButtonAlignment(p)
 	return c
 }
 
@@ -81,7 +115,9 @@ func (c *Confirm) set(value string) error {
 	if err != nil {
 		return fmt.Errorf("invalid bool %q: %w", value, err)
 	}
-	if c.value != nil {
+	if c.accessor != nil {
+		c.accessor.Set(b)
+	} else if c.value != nil {
 		*c.value = b
 	}
 	if c.validate != nil {
