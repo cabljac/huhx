@@ -99,3 +99,44 @@ func TestRunner_AnswerFileMalformedYAML(t *testing.T) {
 		t.Errorf("expected file path in error, got %q", msg)
 	}
 }
+
+// TestLoadAnswerFile_CacheAndInvalidate verifies the answer file is memoized
+// across calls, that each call returns an independent copy, and that the
+// cache is invalidated when the file changes.
+func TestLoadAnswerFile_CacheAndInvalidate(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "answers.yaml")
+	if err := os.WriteFile(path, []byte("name: alice\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	first, err := loadAnswerFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first["name"] != "alice" {
+		t.Fatalf("got %q, want alice", first["name"])
+	}
+
+	// Mutating the returned copy must not poison the cache.
+	first["name"] = "mutated"
+	second, err := loadAnswerFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if second["name"] != "alice" {
+		t.Fatalf("cache returned a shared/mutated map: got %q, want alice", second["name"])
+	}
+
+	// Rewriting the file (different size) invalidates the cache.
+	if err := os.WriteFile(path, []byte("name: bob-the-builder\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	third, err := loadAnswerFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if third["name"] != "bob-the-builder" {
+		t.Fatalf("cache not invalidated after rewrite: got %q", third["name"])
+	}
+}
