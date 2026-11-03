@@ -137,15 +137,15 @@ func (i *Input) huhField() huh.Field { return i.inner }
 func (i *Input) required() bool      { return !i.optional }
 
 func (i *Input) set(value string) error {
-	if i.accessor != nil {
-		i.accessor.Set(value)
-	} else if i.value != nil {
-		*i.value = value
-	}
 	if i.validate != nil {
 		if err := i.validate(value); err != nil {
 			return err
 		}
+	}
+	if i.accessor != nil {
+		i.accessor.Set(value)
+	} else if i.value != nil {
+		*i.value = value
 	}
 	return nil
 }

@@ -115,15 +115,15 @@ func (c *Confirm) set(value string) error {
 	if err != nil {
 		return fmt.Errorf("invalid bool %q: %w", value, err)
 	}
-	if c.accessor != nil {
-		c.accessor.Set(b)
-	} else if c.value != nil {
-		*c.value = b
-	}
 	if c.validate != nil {
 		if err := c.validate(b); err != nil {
 			return err
 		}
+	}
+	if c.accessor != nil {
+		c.accessor.Set(b)
+	} else if c.value != nil {
+		*c.value = b
 	}
 	return nil
 }

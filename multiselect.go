@@ -182,15 +182,15 @@ func (m *MultiSelect[T]) set(value string) error {
 			return fmt.Errorf("%q is not a valid option", p)
 		}
 	}
-	if m.accessor != nil {
-		m.accessor.Set(result)
-	} else if m.value != nil {
-		*m.value = result
-	}
 	if m.validate != nil {
 		if err := m.validate(result); err != nil {
 			return err
 		}
+	}
+	if m.accessor != nil {
+		m.accessor.Set(result)
+	} else if m.value != nil {
+		*m.value = result
 	}
 	return nil
 }
