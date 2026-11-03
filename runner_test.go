@@ -481,3 +481,23 @@ func TestRunner_KeylessOptionalFieldSkipped(t *testing.T) {
 		t.Errorf("expected nickname zero, got %q", nickname)
 	}
 }
+
+func TestRunner_InteractiveAllGroupsHiddenSkipsHuh(t *testing.T) {
+	newGroup := func() *Group {
+		name := "x"
+		return NewGroup(NewInput().Key("name").Value(&name))
+	}
+	cases := map[string]*Form{
+		"WithHide":       NewForm(newGroup().WithHide(true)),
+		"WithHideFunc":   NewForm(newGroup().WithHideFunc(func() bool { return true })),
+		"several hidden": NewForm(newGroup().WithHide(true), newGroup().WithHideFunc(func() bool { return true })),
+		"no groups":      NewForm(),
+	}
+	for name, form := range cases {
+		t.Run(name, func(t *testing.T) {
+			if err := New(form, WithNonInteractive(Never)).Run(); err != nil {
+				t.Fatalf("Run: %v", err)
+			}
+		})
+	}
+}
