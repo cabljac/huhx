@@ -287,6 +287,74 @@ func TestRunner_FullPrecedenceChain(t *testing.T) {
 	}
 }
 
+func writeAnswerFile(t *testing.T, body string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "answers.yaml")
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func answerFileCmd(t *testing.T, args ...string) *cobra.Command {
+	t.Helper()
+	cmd := &cobra.Command{Use: "t"}
+	cmd.Flags().String("answer-file", "", "")
+	if err := cmd.ParseFlags(args); err != nil {
+		t.Fatal(err)
+	}
+	return cmd
+}
+
+func TestRunner_AnswerFileFlag(t *testing.T) {
+	t.Run("flag alone resolves", func(t *testing.T) {
+		path := writeAnswerFile(t, "name: from-flag-file\n")
+		var name string
+		form := NewForm(NewGroup(NewInput().Key("name").Value(&name)))
+		r := New(form,
+			WithNonInteractive(Always),
+			WithCobraFlags(answerFileCmd(t, "--answer-file", path)),
+		)
+		if err := r.Run(); err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if name != "from-flag-file" {
+			t.Errorf("expected name from flag file, got %q", name)
+		}
+	})
+
+	t.Run("WithAnswerFile wins over flag", func(t *testing.T) {
+		flagPath := writeAnswerFile(t, "name: from-flag-file\n")
+		optPath := writeAnswerFile(t, "name: from-option-file\n")
+		var name string
+		form := NewForm(NewGroup(NewInput().Key("name").Value(&name)))
+		r := New(form,
+			WithNonInteractive(Always),
+			WithCobraFlags(answerFileCmd(t, "--answer-file", flagPath)),
+			WithAnswerFile(optPath),
+		)
+		if err := r.Run(); err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if name != "from-option-file" {
+			t.Errorf("expected WithAnswerFile to win, got %q", name)
+		}
+	})
+
+	t.Run("unset flag is ignored", func(t *testing.T) {
+		var name string
+		form := NewForm(NewGroup(NewInput().Key("name").Value(&name)))
+		r := New(form,
+			WithNonInteractive(Always),
+			WithCobraFlags(answerFileCmd(t)),
+		)
+		err := r.Run()
+		if err == nil || !strings.Contains(err.Error(), "missing required answers") {
+			t.Fatalf("expected missing-answers error, got %v", err)
+		}
+	})
+}
+
 func TestRunner_MultiSelect(t *testing.T) {
 	var toppings []string
 	form := NewForm(NewGroup(

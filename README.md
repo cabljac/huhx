@@ -124,7 +124,7 @@ When non-interactive, each field's answer is resolved in order:
 1. `WithAnswers(map[string]any{...})` — programmatic injection.
 2. Cobra named flag matching the field key (e.g. `--name`).
 3. `--answer key=val` entries from a `StringArray` flag named `answer`.
-4. Answer file from `WithAnswerFile(path)` (YAML or JSON).
+4. Answer file (YAML or JSON) from `WithAnswerFile(path)`, or else from an explicitly set `--answer-file` string flag when `WithCobraFlags` is used.
 5. Environment variable `<PREFIX>_<KEY>` (with `WithEnvPrefix`).
 6. Otherwise the field is reported as missing.
 
@@ -256,4 +256,7 @@ cmd.Flags().String("answer-file", "", "path to YAML/JSON answer file")
 cmd.Flags().Bool("non-interactive", false, "force non-interactive mode")
 ```
 
-Then pass `huhx.WithCobraFlags(cmd)` to the runner.
+Then pass `huhx.WithCobraFlags(cmd)` to the runner. The runner reads
+`--answer`, `--answer-file`, and `--non-interactive` from the command itself.
+If you also pass `WithAnswerFile(path)` with a non-empty path, it wins over
+the `--answer-file` flag.
