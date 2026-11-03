@@ -161,7 +161,8 @@ func (m *MultiSelect[T]) currentOptions() []huh.Option[T] {
 // fmt.Sprintf("%v", v) equals it. The %v fallback works cleanly for
 // primitive T but may be ambiguous for struct types or types with a
 // custom String() method — set Key explicitly for those.
-func (m *MultiSelect[T]) set(value string) error {
+func (m *MultiSelect[T]) set(answer any) error {
+	value := answerString(answer)
 	opts := m.currentOptions()
 	parts := strings.Split(value, ",")
 	result := make([]T, 0, len(parts))

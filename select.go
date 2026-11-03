@@ -146,7 +146,8 @@ func (s *Select[T]) currentOptions() []huh.Option[T] {
 // equals the answer. The %v fallback works cleanly for primitive T
 // (string, int, etc.) but may be ambiguous for struct types or types
 // with a custom String() method — set Key explicitly for those.
-func (s *Select[T]) set(value string) error {
+func (s *Select[T]) set(answer any) error {
+	value := answerString(answer)
 	var parsed T
 	var matched bool
 	for _, o := range s.currentOptions() {

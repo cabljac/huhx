@@ -110,7 +110,8 @@ func (c *Confirm) key() string         { return c.k }
 func (c *Confirm) huhField() huh.Field { return c.inner }
 func (c *Confirm) required() bool      { return !c.optional }
 
-func (c *Confirm) set(value string) error {
+func (c *Confirm) set(answer any) error {
+	value := answerString(answer)
 	b, err := strconv.ParseBool(value)
 	if err != nil {
 		return fmt.Errorf("invalid bool %q: %w", value, err)

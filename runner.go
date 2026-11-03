@@ -122,9 +122,9 @@ func (r *Runner) runNonInteractive() error {
 	return nil
 }
 
-func (r *Runner) resolve(key string, fileAns, cliAns map[string]string) (string, bool) {
+func (r *Runner) resolve(key string, fileAns, cliAns map[string]string) (any, bool) {
 	if v, ok := r.answers[key]; ok && v != nil {
-		return fmt.Sprintf("%v", v), true
+		return v, true
 	}
 	if r.cobraCmd != nil {
 		if f := r.cobraCmd.Flags().Lookup(key); f != nil && f.Changed {
@@ -142,7 +142,7 @@ func (r *Runner) resolve(key string, fileAns, cliAns map[string]string) (string,
 			return v, true
 		}
 	}
-	return "", false
+	return nil, false
 }
 
 func (r *Runner) missingErr(missing []string) error {

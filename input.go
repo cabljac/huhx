@@ -136,7 +136,8 @@ func (i *Input) key() string         { return i.k }
 func (i *Input) huhField() huh.Field { return i.inner }
 func (i *Input) required() bool      { return !i.optional }
 
-func (i *Input) set(value string) error {
+func (i *Input) set(answer any) error {
+	value := answerString(answer)
 	if i.validate != nil {
 		if err := i.validate(value); err != nil {
 			return err
