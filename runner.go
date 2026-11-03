@@ -122,7 +122,7 @@ func (r *Runner) runNonInteractive() error {
 	return nil
 }
 
-func (r *Runner) resolve(key string, fileAns, cliAns map[string]string) (any, bool) {
+func (r *Runner) resolve(key string, fileAns map[string]any, cliAns map[string]string) (any, bool) {
 	if v, ok := r.answers[key]; ok && v != nil {
 		return v, true
 	}

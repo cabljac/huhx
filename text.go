@@ -129,7 +129,10 @@ func (t *Text) huhField() huh.Field { return t.inner }
 func (t *Text) required() bool      { return !t.optional }
 
 func (t *Text) set(answer any) error {
-	value := answerString(answer)
+	value, err := scalarString(answer)
+	if err != nil {
+		return err
+	}
 	if t.validate != nil {
 		if err := t.validate(value); err != nil {
 			return err

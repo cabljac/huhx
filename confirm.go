@@ -111,10 +111,9 @@ func (c *Confirm) huhField() huh.Field { return c.inner }
 func (c *Confirm) required() bool      { return !c.optional }
 
 func (c *Confirm) set(answer any) error {
-	value := answerString(answer)
-	b, err := strconv.ParseBool(value)
+	b, err := parseBool(answer)
 	if err != nil {
-		return fmt.Errorf("invalid bool %q: %w", value, err)
+		return err
 	}
 	if c.validate != nil {
 		if err := c.validate(b); err != nil {
@@ -127,4 +126,19 @@ func (c *Confirm) set(answer any) error {
 		*c.value = b
 	}
 	return nil
+}
+
+func parseBool(answer any) (bool, error) {
+	if b, ok := answer.(bool); ok {
+		return b, nil
+	}
+	s, err := scalarString(answer)
+	if err != nil {
+		return false, err
+	}
+	b, err := strconv.ParseBool(s)
+	if err != nil {
+		return false, fmt.Errorf("invalid bool %q: %w", s, err)
+	}
+	return b, nil
 }

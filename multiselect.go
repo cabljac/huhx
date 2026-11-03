@@ -1,18 +1,18 @@
 package huhx
 
 import (
-	"fmt"
+	"reflect"
 	"strings"
 
 	"charm.land/huh/v2"
 )
 
 // MultiSelect wraps *huh.MultiSelect[T] for headless drive. The
-// non-interactive answer is a comma-separated string of option keys or
-// values. Options provided via Options(...) are captured at construction
-// time; options provided via OptionsFunc(...) are re-evaluated lazily
-// inside set() so closures that depend on earlier fields' values resolve
-// correctly.
+// non-interactive answer is a list of option keys or values, given as a
+// slice or as a comma-separated string. Options provided via Options(...)
+// are captured at construction time; options provided via
+// OptionsFunc(...) are re-evaluated lazily inside set() so closures that
+// depend on earlier fields' values resolve correctly.
 type MultiSelect[T comparable] struct {
 	inner       *huh.MultiSelect[T]
 	k           string
@@ -156,32 +156,52 @@ func (m *MultiSelect[T]) currentOptions() []huh.Option[T] {
 	return m.options
 }
 
-// set parses value as a comma-separated list of option references. Each
-// part matches an option whose Key equals it or whose Value formatted as
-// fmt.Sprintf("%v", v) equals it. The %v fallback works cleanly for
-// primitive T but may be ambiguous for struct types or types with a
-// custom String() method — set Key explicitly for those.
-func (m *MultiSelect[T]) set(answer any) error {
-	value := answerString(answer)
+// parse turns an answer into the selected option values. A string is a
+// comma-separated list of option references. A slice or array is matched
+// element by element, so list elements may contain commas. Any other
+// value is a single selection. Each reference is resolved with
+// matchOption.
+func (m *MultiSelect[T]) parse(answer any) ([]T, error) {
 	opts := m.currentOptions()
-	parts := strings.Split(value, ",")
-	result := make([]T, 0, len(parts))
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p == "" {
-			continue
-		}
-		var matched bool
-		for _, o := range opts {
-			if o.Key == p || fmt.Sprintf("%v", o.Value) == p {
-				result = append(result, o.Value)
-				matched = true
-				break
+	if s, ok := answer.(string); ok {
+		parts := strings.Split(s, ",")
+		result := make([]T, 0, len(parts))
+		for _, p := range parts {
+			p = strings.TrimSpace(p)
+			if p == "" {
+				continue
 			}
+			v, err := matchOption(opts, p)
+			if err != nil {
+				return nil, err
+			}
+			result = append(result, v)
 		}
-		if !matched {
-			return fmt.Errorf("%q is not a valid option", p)
+		return result, nil
+	}
+	rv := reflect.ValueOf(answer)
+	if k := rv.Kind(); k == reflect.Slice || k == reflect.Array {
+		result := make([]T, 0, rv.Len())
+		for i := range rv.Len() {
+			v, err := matchOption(opts, rv.Index(i).Interface())
+			if err != nil {
+				return nil, err
+			}
+			result = append(result, v)
 		}
+		return result, nil
+	}
+	v, err := matchOption(opts, answer)
+	if err != nil {
+		return nil, err
+	}
+	return []T{v}, nil
+}
+
+func (m *MultiSelect[T]) set(answer any) error {
+	result, err := m.parse(answer)
+	if err != nil {
+		return err
 	}
 	if m.validate != nil {
 		if err := m.validate(result); err != nil {

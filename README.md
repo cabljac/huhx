@@ -142,9 +142,37 @@ Each wrapper mirrors huh's chainable API. `Validate(fn)` stores the
 validator on the wrapper so it runs against headless-injected values
 without going through huh internals.
 
-`MultiSelect` accepts comma-separated answers (`a,b,c`).
+## Answer formats
 
-`Confirm` parses with `strconv.ParseBool`.
+`--answer`, cobra flags and env vars give string answers. Each field
+parses them:
+
+- `Confirm` parses with `strconv.ParseBool`.
+- `Select` matches an option's key, or its value formatted with `%v`.
+- `MultiSelect` splits on commas (`a,b,c`) and matches each part like
+  `Select`.
+
+`WithAnswers` and answer files keep the value's type:
+
+- A list goes to `MultiSelect` as a list. Elements are matched one by
+  one and are not split on commas.
+- A value of type `T` matches a `Select[T]` or `MultiSelect[T]` option
+  by `==`. A `bool` goes straight to `Confirm`.
+- Any other scalar falls back to `%v`. An `int` works for an `Input`,
+  and a YAML `3` matches a `Select[string]` option `"3"`.
+- A list or map for a single-value field is an error.
+
+```go
+huhx.WithAnswers(map[string]any{
+    "regions": []string{"us-east-1", "us-west-2"},
+    "port":    8080,
+})
+```
+
+```yaml
+regions: [us-east-1, us-west-2]
+port: 8080
+```
 
 ## Static vs dynamic options
 

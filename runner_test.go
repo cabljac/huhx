@@ -481,3 +481,89 @@ func TestRunner_KeylessOptionalFieldSkipped(t *testing.T) {
 		t.Errorf("expected nickname zero, got %q", nickname)
 	}
 }
+
+func TestRunner_ScalarAnswerFallback(t *testing.T) {
+	t.Run("int for Input renders via %v", func(t *testing.T) {
+		var got string
+		form := NewForm(NewGroup(NewInput().Key("port").Value(&got)))
+		r := New(form,
+			WithNonInteractive(Always),
+			WithAnswers(map[string]any{"port": 8080}),
+		)
+		if err := r.Run(); err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if got != "8080" {
+			t.Errorf("expected %q, got %q", "8080", got)
+		}
+	})
+
+	t.Run("bool for Text renders via %v", func(t *testing.T) {
+		var got string
+		form := NewForm(NewGroup(NewText().Key("notes").Value(&got)))
+		r := New(form,
+			WithNonInteractive(Always),
+			WithAnswers(map[string]any{"notes": true}),
+		)
+		if err := r.Run(); err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if got != "true" {
+			t.Errorf("expected %q, got %q", "true", got)
+		}
+	})
+
+	t.Run("bool for Confirm passes through", func(t *testing.T) {
+		var got bool
+		form := NewForm(NewGroup(NewConfirm().Key("ok").Value(&got)))
+		r := New(form,
+			WithNonInteractive(Always),
+			WithAnswers(map[string]any{"ok": true}),
+		)
+		if err := r.Run(); err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if !got {
+			t.Error("expected true")
+		}
+	})
+
+	t.Run("int for Confirm parses via %v", func(t *testing.T) {
+		var got bool
+		form := NewForm(NewGroup(NewConfirm().Key("ok").Value(&got)))
+		r := New(form,
+			WithNonInteractive(Always),
+			WithAnswers(map[string]any{"ok": 1}),
+		)
+		if err := r.Run(); err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if !got {
+			t.Error("expected true")
+		}
+	})
+}
+
+func TestRunner_ListAnswerRejectedForScalarFields(t *testing.T) {
+	cases := map[string]field{
+		"Input":   NewInput().Key("x").Value(new(string)),
+		"Text":    NewText().Key("x").Value(new(string)),
+		"Confirm": NewConfirm().Key("x").Value(new(bool)),
+	}
+	for name, f := range cases {
+		t.Run(name, func(t *testing.T) {
+			form := NewForm(NewGroup(f))
+			r := New(form,
+				WithNonInteractive(Always),
+				WithAnswers(map[string]any{"x": []string{"a", "b"}}),
+			)
+			err := r.Run()
+			if err == nil {
+				t.Fatal("expected error for list answer")
+			}
+			if !strings.Contains(err.Error(), `field "x": expected a single value, got []string`) {
+				t.Errorf("expected single-value error, got %q", err.Error())
+			}
+		})
+	}
+}

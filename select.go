@@ -1,10 +1,6 @@
 package huhx
 
-import (
-	"fmt"
-
-	"charm.land/huh/v2"
-)
+import "charm.land/huh/v2"
 
 // Select wraps *huh.Select[T] for headless drive. Options provided via
 // Options(...) are captured at construction time; options provided via
@@ -141,23 +137,11 @@ func (s *Select[T]) currentOptions() []huh.Option[T] {
 	return s.options
 }
 
-// set resolves the answer string against the field's options. An option
-// matches if its Key equals the answer or if fmt.Sprintf("%v", o.Value)
-// equals the answer. The %v fallback works cleanly for primitive T
-// (string, int, etc.) but may be ambiguous for struct types or types
-// with a custom String() method — set Key explicitly for those.
+// set resolves the answer against the field's options with matchOption.
 func (s *Select[T]) set(answer any) error {
-	value := answerString(answer)
-	var parsed T
-	var matched bool
-	for _, o := range s.currentOptions() {
-		if o.Key == value || fmt.Sprintf("%v", o.Value) == value {
-			parsed, matched = o.Value, true
-			break
-		}
-	}
-	if !matched {
-		return fmt.Errorf("%q is not a valid option", value)
+	parsed, err := matchOption(s.currentOptions(), answer)
+	if err != nil {
+		return err
 	}
 	if s.validate != nil {
 		if err := s.validate(parsed); err != nil {

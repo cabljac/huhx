@@ -12,9 +12,13 @@ func WithEnvPrefix(prefix string) Option {
 	return func(r *Runner) { r.envPrefix = prefix }
 }
 
-// WithAnswers supplies answers programmatically. Values are stringified
-// via fmt.Sprintf("%v", v) before being handed to the field's setter.
-// This has the highest precedence among answer sources.
+// WithAnswers supplies answers programmatically. Values reach the field
+// with their Go type intact: a Confirm takes a bool, a Select[T] takes a
+// T, and a MultiSelect[T] takes a []T, []any or []string. Strings are
+// parsed the same way as flag and env answers. Other scalars fall back
+// to fmt.Sprintf("%v", v), so an int works for an Input. A slice or map
+// given to a single-value field is an error. A nil value counts as
+// absent. This has the highest precedence among answer sources.
 func WithAnswers(m map[string]any) Option {
 	return func(r *Runner) { r.answers = m }
 }

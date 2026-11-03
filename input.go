@@ -137,7 +137,10 @@ func (i *Input) huhField() huh.Field { return i.inner }
 func (i *Input) required() bool      { return !i.optional }
 
 func (i *Input) set(answer any) error {
-	value := answerString(answer)
+	value, err := scalarString(answer)
+	if err != nil {
+		return err
+	}
 	if i.validate != nil {
 		if err := i.validate(value); err != nil {
 			return err
