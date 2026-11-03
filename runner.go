@@ -63,7 +63,7 @@ func (r *Runner) Run() error {
 }
 
 // allGroupsHidden reports whether every group is hidden. huh opens the TTY
-// even then (charmbracelet/huh#718), which fails without a terminal.
+// even then, which fails without a terminal.
 func (r *Runner) allGroupsHidden() bool {
 	for _, g := range r.form.groups {
 		if g.hide == nil || !g.hide() {
