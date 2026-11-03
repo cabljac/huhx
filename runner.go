@@ -56,7 +56,21 @@ func (r *Runner) Run() error {
 	if r.isNonInteractive() {
 		return r.runNonInteractive()
 	}
+	if r.allGroupsHidden() {
+		return nil
+	}
 	return r.form.inner.Run()
+}
+
+// allGroupsHidden reports whether every group is hidden. huh opens the TTY
+// even then (charmbracelet/huh#718), which fails without a terminal.
+func (r *Runner) allGroupsHidden() bool {
+	for _, g := range r.form.groups {
+		if g.hide == nil || !g.hide() {
+			return false
+		}
+	}
+	return true
 }
 
 // isNonInteractive reports whether the runner should skip the bubble tea
