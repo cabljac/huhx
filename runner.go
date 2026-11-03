@@ -82,8 +82,20 @@ func (r *Runner) isNonInteractive() bool {
 	return false
 }
 
+func (r *Runner) answerFilePath() string {
+	if r.answerFile != "" {
+		return r.answerFile
+	}
+	if r.cobraCmd != nil {
+		if f := r.cobraCmd.Flags().Lookup("answer-file"); f != nil && f.Changed {
+			return f.Value.String()
+		}
+	}
+	return ""
+}
+
 func (r *Runner) runNonInteractive() error {
-	fileAns, err := loadAnswerFile(r.answerFile)
+	fileAns, err := loadAnswerFile(r.answerFilePath())
 	if err != nil {
 		return err
 	}

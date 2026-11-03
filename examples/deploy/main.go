@@ -70,11 +70,9 @@ func main() {
 				}),
 			)
 
-			answerFile, _ := cmd.Flags().GetString("answer-file")
 			runner := huhx.New(form,
 				huhx.WithEnvPrefix("DEPLOY"),
 				huhx.WithCobraFlags(cmd),
-				huhx.WithAnswerFile(answerFile),
 			)
 			if err := runner.Run(); err != nil {
 				return err

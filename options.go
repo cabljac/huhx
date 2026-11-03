@@ -20,19 +20,22 @@ func WithAnswers(m map[string]any) Option {
 }
 
 // WithAnswerFile loads answers from a YAML or JSON file. YAML is a superset
-// of JSON so a single decoder handles both.
+// of JSON so a single decoder handles both. A non-empty path takes
+// precedence over an --answer-file flag read through WithCobraFlags.
 func WithAnswerFile(path string) Option {
 	return func(r *Runner) { r.answerFile = path }
 }
 
 // WithCobraFlags wires the runner to a cobra command. The runner uses
-// the command for three things:
+// the command for four things:
 //
 //  1. Looking up each field's key as a named flag (e.g. --name) and
 //     using its value when the flag has been explicitly set.
-//  2. Reading --answer key=val pairs from a StringSlice flag named
+//  2. Reading --answer key=val pairs from a StringArray flag named
 //     "answer" if present.
-//  3. Honouring a --non-interactive bool flag if present and set, as
+//  3. Loading answers from a string flag named "answer-file" if present
+//     and explicitly set. A non-empty WithAnswerFile path wins over it.
+//  4. Honouring a --non-interactive bool flag if present and set, as
 //     one of the AutoDetect inputs.
 func WithCobraFlags(cmd *cobra.Command) Option {
 	return func(r *Runner) { r.cobraCmd = cmd }
