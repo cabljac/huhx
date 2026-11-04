@@ -51,8 +51,9 @@ func New(form *Form, opts ...Option) *Runner {
 
 // Run executes the form. In interactive mode it delegates to huh.Form.Run().
 // In non-interactive mode it walks groups and resolves each field's answer
-// from the configured sources, returning a descriptive error if any
-// required answer is missing or any validator fails.
+// from the configured sources. It stops at the end of the first group
+// with an error and returns every error in that group joined, so
+// errors.Is and errors.As reach each wrapped validator error.
 func (r *Runner) Run() error {
 	if r.isNonInteractive() {
 		return r.runNonInteractive()
@@ -93,38 +94,51 @@ func (r *Runner) runNonInteractive() error {
 		return err
 	}
 
-	var missing []string
 	for gi, g := range r.form.groups {
 		if g.hide != nil && g.hide() {
 			continue
 		}
-		for fi, f := range g.fields {
-			if f.key() == "" {
-				if f.required() {
-					return fmt.Errorf("required field %d in group %d has no Key() set; call .Key(\"...\") on it to enable non-interactive mode", fi+1, gi+1)
-				}
-				continue
+		if err := r.runGroup(gi, g, fileAns, cliAns); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// runGroup answers every field in g and returns all of its errors joined.
+// The caller stops at the first failing group because later groups can
+// read this group's values through OptionsFunc and WithHideFunc.
+func (r *Runner) runGroup(gi int, g *Group, fileAns map[string]any, cliAns map[string]string) error {
+	var errs []error
+	var missing []string
+	for fi, f := range g.fields {
+		if f.key() == "" {
+			if f.required() {
+				errs = append(errs, fmt.Errorf("required field %d in group %d has no Key() set; call .Key(\"...\") on it to enable non-interactive mode", fi+1, gi+1))
 			}
-			ans, ok := r.resolve(f.key(), fileAns, cliAns)
-			if !ok {
-				hasDefault, err := f.checkDefault()
-				if err != nil {
-					return fmt.Errorf("field %q: %w", f.key(), err)
-				}
-				if !hasDefault && f.required() {
-					missing = append(missing, f.key())
-				}
-				continue
+			continue
+		}
+		ans, ok := r.resolve(f.key(), fileAns, cliAns)
+		if !ok {
+			hasDefault, err := f.checkDefault()
+			if err != nil {
+				errs = append(errs, fmt.Errorf("field %q: %w", f.key(), err))
+			} else if !hasDefault && f.required() {
+				missing = append(missing, f.key())
 			}
-			if err := f.set(ans); err != nil {
-				return fmt.Errorf("field %q: %w", f.key(), err)
-			}
+			continue
+		}
+		if err := f.set(ans); err != nil {
+			errs = append(errs, fmt.Errorf("field %q: %w", f.key(), err))
 		}
 	}
 	if len(missing) > 0 {
-		return r.missingErr(missing)
+		errs = append(errs, r.missingErr(missing))
 	}
-	return nil
+	if len(errs) == 1 {
+		return errs[0]
+	}
+	return errors.Join(errs...)
 }
 
 func (r *Runner) resolve(key string, fileAns map[string]any, cliAns map[string]string) (any, bool) {
