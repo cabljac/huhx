@@ -100,7 +100,10 @@ func (c *Confirm) Validate(fn func(bool) error) *Confirm {
 	return c
 }
 
-// Optional marks the field as not required in non-interactive mode.
+// Optional has no effect on a keyed Confirm in non-interactive mode,
+// because a Confirm is never missing: with no answer from a source, its
+// current value is the answer, as in huh's terminal UI. It only lets a
+// Confirm without a Key be skipped instead of failing the run.
 func (c *Confirm) Optional() *Confirm {
 	c.optional = true
 	return c
@@ -109,6 +112,20 @@ func (c *Confirm) Optional() *Confirm {
 func (c *Confirm) key() string         { return c.k }
 func (c *Confirm) huhField() huh.Field { return c.inner }
 func (c *Confirm) required() bool      { return !c.optional }
+
+// checkDefault always reports an answer: like huh's terminal UI, a
+// Confirm submits its current value, and a bool cannot tell an unset
+// false from a chosen one.
+func (c *Confirm) checkDefault() (bool, error) {
+	var v bool
+	if c.accessor != nil {
+		v = c.accessor.Get()
+	}
+	if c.validate != nil {
+		return true, c.validate(v)
+	}
+	return true, nil
+}
 
 func (c *Confirm) set(answer any) error {
 	b, err := parseBool(answer)

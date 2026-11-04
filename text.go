@@ -128,6 +128,20 @@ func (t *Text) key() string         { return t.k }
 func (t *Text) huhField() huh.Field { return t.inner }
 func (t *Text) required() bool      { return !t.optional }
 
+func (t *Text) checkDefault() (bool, error) {
+	if t.accessor == nil {
+		return false, nil
+	}
+	v := t.accessor.Get()
+	if v == "" {
+		return false, nil
+	}
+	if t.validate != nil {
+		return true, t.validate(v)
+	}
+	return true, nil
+}
+
 func (t *Text) set(answer any) error {
 	value, err := scalarString(answer)
 	if err != nil {

@@ -198,6 +198,20 @@ func (m *MultiSelect[T]) parse(answer any) ([]T, error) {
 	return []T{v}, nil
 }
 
+func (m *MultiSelect[T]) checkDefault() (bool, error) {
+	if m.accessor == nil {
+		return false, nil
+	}
+	v := m.accessor.Get()
+	if len(v) == 0 {
+		return false, nil
+	}
+	if m.validate != nil {
+		return true, m.validate(v)
+	}
+	return true, nil
+}
+
 func (m *MultiSelect[T]) set(answer any) error {
 	result, err := m.parse(answer)
 	if err != nil {

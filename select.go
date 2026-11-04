@@ -1,6 +1,10 @@
 package huhx
 
-import "charm.land/huh/v2"
+import (
+	"slices"
+
+	"charm.land/huh/v2"
+)
 
 // Select wraps *huh.Select[T] for headless drive. Options provided via
 // Options(...) are captured at construction time; options provided via
@@ -15,6 +19,10 @@ type Select[T comparable] struct {
 	optional    bool
 	options     []huh.Option[T]
 	optionsFunc func() []huh.Option[T]
+	// huhWrote is the value huh's Select wrote into the binding while the
+	// form was built, which must not count as a caller-provided default.
+	huhWrote   T
+	huhWroteOK bool
 }
 
 // NewSelect returns a new Select wrapping huh.NewSelect[T]().
@@ -48,7 +56,7 @@ func (s *Select[T]) Description(d string) *Select[T] {
 func (s *Select[T]) Options(opts ...huh.Option[T]) *Select[T] {
 	s.options = opts
 	s.optionsFunc = nil
-	s.inner.Options(opts...)
+	s.trackHuhWrite(func() { s.inner.Options(opts...) })
 	return s
 }
 
@@ -69,14 +77,16 @@ func (s *Select[T]) OptionsFunc(f func() []huh.Option[T], bindings any) *Select[
 func (s *Select[T]) Value(v *T) *Select[T] {
 	s.value = v
 	s.accessor = huh.NewPointerAccessor(v)
-	s.inner.Value(v)
+	s.huhWroteOK = false
+	s.trackHuhWrite(func() { s.inner.Value(v) })
 	return s
 }
 
 // Accessor binds a custom accessor for reading/writing the field value.
 func (s *Select[T]) Accessor(a huh.Accessor[T]) *Select[T] {
 	s.accessor = a
-	s.inner.Accessor(a)
+	s.huhWroteOK = false
+	s.trackHuhWrite(func() { s.inner.Accessor(a) })
 	return s
 }
 
@@ -135,6 +145,38 @@ func (s *Select[T]) currentOptions() []huh.Option[T] {
 		return s.optionsFunc()
 	}
 	return s.options
+}
+
+// trackHuhWrite runs f and records any value it wrote into the binding.
+// huh's Select moves its cursor to the first option and writes that
+// option's value when the bound value is not an option.
+func (s *Select[T]) trackHuhWrite(f func()) {
+	if s.accessor == nil {
+		f()
+		return
+	}
+	before := s.accessor.Get()
+	f()
+	if after := s.accessor.Get(); after != before {
+		s.huhWrote, s.huhWroteOK = after, true
+	}
+}
+
+func (s *Select[T]) checkDefault() (bool, error) {
+	if s.accessor == nil {
+		return false, nil
+	}
+	v := s.accessor.Get()
+	if s.huhWroteOK && v == s.huhWrote {
+		return false, nil
+	}
+	if !slices.ContainsFunc(s.currentOptions(), func(o huh.Option[T]) bool { return o.Value == v }) {
+		return false, nil
+	}
+	if s.validate != nil {
+		return true, s.validate(v)
+	}
+	return true, nil
 }
 
 // set resolves the answer against the field's options with matchOption.

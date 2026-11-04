@@ -126,7 +126,24 @@ When non-interactive, each field's answer is resolved in order:
 3. `--answer key=val` entries from a `StringArray` flag named `answer`.
 4. Answer file from `WithAnswerFile(path)` (YAML or JSON).
 5. Environment variable `<PREFIX>_<KEY>` (with `WithEnvPrefix`).
-6. Otherwise the field is reported as missing.
+6. The value already bound to the field through `Value(...)` or
+   `Accessor(...)`.
+7. Otherwise the field is reported as missing.
+
+The bound value counts as an answer when:
+
+- `Input` / `Text`: it is not empty.
+- `Select`: it is one of the current options (`OptionsFunc` is
+  evaluated). huh writes the first option into the binding when the
+  bound value is not an option. huhx does not count that write as an
+  answer.
+- `MultiSelect`: it is not empty.
+- `Confirm`: always. Its current value is the answer, as in huh's
+  terminal UI, so a `Confirm` is never missing and `.Optional()` has no
+  effect on a `Confirm` that has a `Key`.
+
+A bound value used as the answer runs through the field's validator,
+the same as an answer from a source.
 
 ## Field types
 

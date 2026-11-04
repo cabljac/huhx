@@ -15,6 +15,9 @@ import (
 type field interface {
 	key() string
 	set(value any) error
+	// checkDefault reports whether the field's bound value counts as an
+	// answer when no source supplies one, and runs the validator on it.
+	checkDefault() (bool, error)
 	huhField() huh.Field
 	required() bool
 }
