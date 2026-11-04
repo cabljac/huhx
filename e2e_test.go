@@ -160,6 +160,33 @@ func TestE2E_DeployMissingRequired(t *testing.T) {
 	if !strings.Contains(stderr, "(env: DEPLOY_ENVIRONMENT)") {
 		t.Errorf("expected stderr to surface env hint, got %q", stderr)
 	}
+	if !strings.Contains(stderr, "(env: DEPLOY_REGIONS)") {
+		t.Errorf("expected missing answers from the later group listed too, got %q", stderr)
+	}
+}
+
+// TestE2E_DeployReportsEveryErrorInGroup proves one run surfaces an
+// invalid answer and a missing answer from the same group together.
+func TestE2E_DeployReportsEveryErrorInGroup(t *testing.T) {
+	if testing.Short() || deployBin == "" {
+		t.Skip("e2e requires built binary; skipped under -short")
+	}
+	stdout, stderr, code := runDeploy(t,
+		[]string{"CI=1"},
+		"--answer", "environment=production",
+	)
+	if code == 0 {
+		t.Fatalf("expected non-zero exit, got 0. stdout=%q stderr=%q", stdout, stderr)
+	}
+	want := "Error: field \"environment\": \"production\" is not a valid option\n" +
+		"missing required answers for:\n" +
+		"  --name (env: DEPLOY_NAME)\n"
+	if !strings.HasPrefix(stderr, want) {
+		t.Errorf("expected stderr to start with %q, got %q", want, stderr)
+	}
+	if strings.Contains(stderr, "(env: DEPLOY_REGIONS)") {
+		t.Errorf("expected walk to stop before the regions group, got %q", stderr)
+	}
 }
 
 func TestE2E_DeployInvalidSelectOption(t *testing.T) {

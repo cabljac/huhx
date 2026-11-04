@@ -219,13 +219,30 @@ group in non-interactive mode and hide it in interactive mode. Both
 mirror huh's API exactly — `WithHide` takes a static bool, `WithHideFunc`
 takes a predicate re-evaluated at run time.
 
-## Missing-answer error
+## Errors
+
+The runner answers every field in a group before it reports errors.
+
+- Missing answers are collected across all groups and reported together
+  at the end.
+- An invalid value (a parse or validator failure, or a required field
+  with no `Key`) stops the walk at the end of its group. Later groups
+  can read earlier values through `OptionsFunc` and `WithHideFunc`, so
+  they are not evaluated against bad data. A missing answer writes
+  nothing, so it does not stop the walk.
+- The error lists every invalid value in that group, then the missing
+  answers found so far.
 
 ```
+field "environment": "production" is not a valid option
+field "port": must be a number
 missing required answers for:
-  --name        (env: DEPLOY_NAME)
-  --environment (env: DEPLOY_ENVIRONMENT)
+  --name   (env: DEPLOY_NAME)
+  --region (env: DEPLOY_REGION)
 ```
+
+Each field error wraps the validator's error, so `errors.Is` and
+`errors.As` reach it through the returned error.
 
 ## Migrating from huh
 

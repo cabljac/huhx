@@ -867,3 +867,147 @@ func TestRunner_ValidatorRunsOnBoundValue(t *testing.T) {
 		}
 	})
 }
+
+type portError struct{ port string }
+
+func (e *portError) Error() string { return "bad port " + e.port }
+
+func TestRunner_ReportsEveryErrorInGroup(t *testing.T) {
+	errName := errors.New("name is reserved")
+	var name, port, region string
+	form := NewForm(NewGroup(
+		NewInput().Key("name").Value(&name).Validate(func(string) error { return errName }),
+		NewInput().Key("port").Value(&port).Validate(func(s string) error { return &portError{s} }),
+		NewInput().Key("region").Value(&region),
+	))
+
+	err := New(form,
+		WithNonInteractive(Always),
+		WithEnvPrefix("APP"),
+		WithAnswers(map[string]any{"name": "admin", "port": "x"}),
+	).Run()
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	want := `field "name": name is reserved
+field "port": bad port x
+missing required answers for:
+  --region (env: APP_REGION)`
+	if err.Error() != want {
+		t.Errorf("expected:\n%s\ngot:\n%s", want, err.Error())
+	}
+	if !errors.Is(err, errName) {
+		t.Errorf("expected errors.Is to reach name validator error")
+	}
+	var pe *portError
+	if !errors.As(err, &pe) || pe.port != "x" {
+		t.Errorf("expected errors.As to reach port validator error, got %v", pe)
+	}
+	if name != "" || port != "" {
+		t.Errorf("expected invalid answers not written, got name=%q port=%q", name, port)
+	}
+}
+
+func TestRunner_GroupWalk(t *testing.T) {
+	cases := []struct {
+		name           string
+		answers        map[string]any
+		want           string
+		laterEvaluated bool
+	}{
+		{
+			name:    "invalid answer stops the walk",
+			answers: map[string]any{"first": "bad", "extra": "x"},
+			want:    `field "first": bad first`,
+		},
+		{
+			name:    "missing answers keep walking",
+			answers: map[string]any{},
+			want: "missing required answers for:\n" +
+				"  --first  (env: APP_FIRST)\n" +
+				"  --extra  (env: APP_EXTRA)\n" +
+				"  --second (env: APP_SECOND)\n" +
+				"  --third  (env: APP_THIRD)",
+			laterEvaluated: true,
+		},
+		{
+			name:    "invalid answer reports missing keys collected so far",
+			answers: map[string]any{"first": "bad"},
+			want: "field \"first\": bad first\n" +
+				"missing required answers for:\n" +
+				"  --extra (env: APP_EXTRA)",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var first, extra, second, third string
+			hideCalls, optionCalls := 0, 0
+			form := NewForm(
+				NewGroup(
+					NewInput().Key("first").Value(&first).Validate(func(s string) error {
+						if s == "bad" {
+							return errors.New("bad first")
+						}
+						return nil
+					}),
+					NewInput().Key("extra").Value(&extra),
+				),
+				NewGroup(
+					NewSelect[string]().Key("second").Value(&second).
+						OptionsFunc(func() []huh.Option[string] {
+							optionCalls++
+							return huh.NewOptions("a")
+						}, &first),
+					NewInput().Key("third").Value(&third),
+				).WithHideFunc(func() bool {
+					hideCalls++
+					return false
+				}),
+			)
+			hideCalls = 0 // huh evaluates the hide func while building the form.
+
+			err := New(form,
+				WithNonInteractive(Always),
+				WithEnvPrefix("APP"),
+				WithAnswers(tc.answers),
+			).Run()
+			if err == nil {
+				t.Fatal("expected error")
+			}
+			if err.Error() != tc.want {
+				t.Errorf("expected:\n%s\ngot:\n%s", tc.want, err.Error())
+			}
+			evaluated := hideCalls > 0 || optionCalls > 0
+			if evaluated != tc.laterEvaluated {
+				t.Errorf("expected later group evaluated=%v, got hide=%d options=%d", tc.laterEvaluated, hideCalls, optionCalls)
+			}
+		})
+	}
+}
+
+func TestRunner_KeylessFieldJoinsGroupErrors(t *testing.T) {
+	var name string
+	form := NewForm(NewGroup(
+		NewInput().Key("name").Value(&name).Validate(func(string) error { return errors.New("bad name") }),
+		NewInput(),
+	))
+	err := New(form, WithNonInteractive(Always), WithAnswers(map[string]any{"name": "x"})).Run()
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	for _, want := range []string{`field "name": bad name`, "required field 2 in group 1 has no Key() set"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("expected %q in error, got %q", want, err.Error())
+		}
+	}
+}
+
+func TestRunner_SingleErrorKeepsFormat(t *testing.T) {
+	var name string
+	form := NewForm(NewGroup(NewInput().Key("name").Value(&name).
+		Validate(func(string) error { return errors.New("bad name") })))
+	err := New(form, WithNonInteractive(Always), WithAnswers(map[string]any{"name": "x"})).Run()
+	if err == nil || err.Error() != `field "name": bad name` {
+		t.Errorf("expected single field error, got %v", err)
+	}
+}
