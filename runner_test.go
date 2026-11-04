@@ -567,3 +567,71 @@ func TestRunner_ListAnswerRejectedForScalarFields(t *testing.T) {
 		})
 	}
 }
+
+func TestRunner_CobraSliceFlagPassesList(t *testing.T) {
+	cases := map[string][]string{
+		"repeated":        {"--regions", "us-east-1", "--regions", "us-west-2"},
+		"comma-separated": {"--regions", "us-east-1,us-west-2"},
+	}
+	for name, args := range cases {
+		t.Run(name, func(t *testing.T) {
+			var regions []string
+			form := NewForm(NewGroup(
+				NewMultiSelect[string]().Key("regions").
+					Options(
+						huh.NewOption("us-east-1", "us-east-1"),
+						huh.NewOption("us-west-2", "us-west-2"),
+					).
+					Value(&regions),
+			))
+
+			cmd := &cobra.Command{Use: "t"}
+			cmd.Flags().StringSlice("regions", nil, "")
+			if err := cmd.ParseFlags(args); err != nil {
+				t.Fatal(err)
+			}
+
+			r := New(form,
+				WithNonInteractive(Always),
+				WithCobraFlags(cmd),
+			)
+			if err := r.Run(); err != nil {
+				t.Fatalf("expected no error, got %v", err)
+			}
+			want := []string{"us-east-1", "us-west-2"}
+			if len(regions) != 2 || regions[0] != want[0] || regions[1] != want[1] {
+				t.Errorf("expected %v, got %v", want, regions)
+			}
+		})
+	}
+}
+
+func TestRunner_CobraScalarFlagStaysString(t *testing.T) {
+	var regions []string
+	form := NewForm(NewGroup(
+		NewMultiSelect[string]().Key("regions").
+			Options(
+				huh.NewOption("us-east-1", "us-east-1"),
+				huh.NewOption("us-west-2", "us-west-2"),
+			).
+			Value(&regions),
+	))
+
+	cmd := &cobra.Command{Use: "t"}
+	cmd.Flags().String("regions", "", "")
+	if err := cmd.ParseFlags([]string{"--regions", "us-east-1,us-west-2"}); err != nil {
+		t.Fatal(err)
+	}
+
+	r := New(form,
+		WithNonInteractive(Always),
+		WithCobraFlags(cmd),
+	)
+	if err := r.Run(); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	want := []string{"us-east-1", "us-west-2"}
+	if len(regions) != 2 || regions[0] != want[0] || regions[1] != want[1] {
+		t.Errorf("expected %v, got %v", want, regions)
+	}
+}

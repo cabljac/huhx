@@ -144,15 +144,17 @@ without going through huh internals.
 
 ## Answer formats
 
-`--answer`, cobra flags and env vars give string answers. Each field
-parses them:
+`--answer`, scalar cobra flags and env vars give string answers. Each
+field parses them:
 
 - `Confirm` parses with `strconv.ParseBool`.
 - `Select` matches an option's key, or its value formatted with `%v`.
 - `MultiSelect` splits on commas (`a,b,c`) and matches each part like
   `Select`.
 
-`WithAnswers` and answer files keep the value's type:
+`WithAnswers` and answer files keep the value's type. Cobra slice flags
+(`StringSlice`, `IntSlice` and so on) give a `[]string`. Typed values
+are handled like this:
 
 - A list goes to `MultiSelect` as a list. Elements are matched one by
   one and are not split on commas.
