@@ -129,15 +129,15 @@ func (t *Text) huhField() huh.Field { return t.inner }
 func (t *Text) required() bool      { return !t.optional }
 
 func (t *Text) set(value string) error {
-	if t.accessor != nil {
-		t.accessor.Set(value)
-	} else if t.value != nil {
-		*t.value = value
-	}
 	if t.validate != nil {
 		if err := t.validate(value); err != nil {
 			return err
 		}
+	}
+	if t.accessor != nil {
+		t.accessor.Set(value)
+	} else if t.value != nil {
+		*t.value = value
 	}
 	return nil
 }

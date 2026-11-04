@@ -147,20 +147,26 @@ func (s *Select[T]) currentOptions() []huh.Option[T] {
 // (string, int, etc.) but may be ambiguous for struct types or types
 // with a custom String() method — set Key explicitly for those.
 func (s *Select[T]) set(value string) error {
+	var parsed T
+	var matched bool
 	for _, o := range s.currentOptions() {
 		if o.Key == value || fmt.Sprintf("%v", o.Value) == value {
-			if s.accessor != nil {
-				s.accessor.Set(o.Value)
-			} else if s.value != nil {
-				*s.value = o.Value
-			}
-			if s.validate != nil {
-				if err := s.validate(o.Value); err != nil {
-					return err
-				}
-			}
-			return nil
+			parsed, matched = o.Value, true
+			break
 		}
 	}
-	return fmt.Errorf("%q is not a valid option", value)
+	if !matched {
+		return fmt.Errorf("%q is not a valid option", value)
+	}
+	if s.validate != nil {
+		if err := s.validate(parsed); err != nil {
+			return err
+		}
+	}
+	if s.accessor != nil {
+		s.accessor.Set(parsed)
+	} else if s.value != nil {
+		*s.value = parsed
+	}
+	return nil
 }
