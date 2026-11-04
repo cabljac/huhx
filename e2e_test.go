@@ -257,3 +257,31 @@ func TestE2E_DeployMultiSelectInvalidOption(t *testing.T) {
 		t.Errorf("expected stderr to surface invalid-option error, got %q", stderr)
 	}
 }
+
+// TestE2E_DeployAnswerFileYAMLList proves a YAML list in the answer file
+// reaches the MultiSelect as a list, not as its "%v" rendering.
+func TestE2E_DeployAnswerFileYAMLList(t *testing.T) {
+	if testing.Short() || deployBin == "" {
+		t.Skip("e2e requires built binary; skipped under -short")
+	}
+	tmp := t.TempDir()
+	path := filepath.Join(tmp, "answers.yaml")
+	body := "" +
+		"name: list-app\n" +
+		"environment: staging\n" +
+		"regions: [us-east-1, us-west-2]\n"
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	stdout, stderr, code := runDeploy(t,
+		[]string{"CI=1"},
+		"--answer-file", path,
+	)
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d. stdout=%q stderr=%q", code, stdout, stderr)
+	}
+	want := `Deploying "list-app" to staging (regions: us-east-1,us-west-2; all regions: false)`
+	if !strings.Contains(stdout, want) {
+		t.Errorf("expected stdout to contain %q, got %q", want, stdout)
+	}
+}

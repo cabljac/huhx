@@ -128,7 +128,11 @@ func (t *Text) key() string         { return t.k }
 func (t *Text) huhField() huh.Field { return t.inner }
 func (t *Text) required() bool      { return !t.optional }
 
-func (t *Text) set(value string) error {
+func (t *Text) set(answer any) error {
+	value, err := scalarString(answer)
+	if err != nil {
+		return err
+	}
 	if t.validate != nil {
 		if err := t.validate(value); err != nil {
 			return err

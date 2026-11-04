@@ -9,6 +9,7 @@ import (
 
 	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 // envTruthy reports whether an environment variable's value should be
@@ -122,19 +123,23 @@ func (r *Runner) runNonInteractive() error {
 	return nil
 }
 
-func (r *Runner) resolve(key string, fileAns, cliAns map[string]string) (string, bool) {
+func (r *Runner) resolve(key string, fileAns map[string]any, cliAns map[string]string) (any, bool) {
 	if v, ok := r.answers[key]; ok && v != nil {
-		return fmt.Sprintf("%v", v), true
+		return v, true
 	}
 	if r.cobraCmd != nil {
 		if f := r.cobraCmd.Flags().Lookup(key); f != nil && f.Changed {
+			// String() on a slice flag renders "[a,b]", which no field can parse.
+			if sv, ok := f.Value.(pflag.SliceValue); ok {
+				return sv.GetSlice(), true
+			}
 			return f.Value.String(), true
 		}
 	}
 	if v, ok := cliAns[key]; ok {
 		return v, true
 	}
-	if v, ok := fileAns[key]; ok {
+	if v, ok := fileAns[key]; ok && v != nil {
 		return v, true
 	}
 	if r.envPrefix != "" {
@@ -142,7 +147,7 @@ func (r *Runner) resolve(key string, fileAns, cliAns map[string]string) (string,
 			return v, true
 		}
 	}
-	return "", false
+	return nil, false
 }
 
 func (r *Runner) missingErr(missing []string) error {

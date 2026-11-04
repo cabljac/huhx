@@ -208,3 +208,134 @@ func TestMultiSelect_AccessorWritesValue(t *testing.T) {
 		t.Errorf("expected accessor to receive [a c], got %v", dst)
 	}
 }
+
+func TestRunner_MultiSelectTypedAnswers(t *testing.T) {
+	cases := map[string]struct {
+		answer any
+		want   []string
+	}{
+		"[]string":                    {[]string{"a", "b"}, []string{"a", "b"}},
+		"[]any":                       {[]any{"b", "a"}, []string{"b", "a"}},
+		"list element matches by key": {[]string{"Alpha"}, []string{"a"}},
+		"list element keeps commas":   {[]string{"a", "c,d"}, []string{"a", "c,d"}},
+		"comma string":                {"a, b", []string{"a", "b"}},
+		"empty list":                  {[]string{}, []string{}},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			var got []string
+			form := NewForm(NewGroup(
+				NewMultiSelect[string]().Key("xs").
+					Options(
+						huh.NewOption("Alpha", "a"),
+						huh.NewOption("b", "b"),
+						huh.NewOption("c,d", "c,d"),
+					).
+					Value(&got).
+					Optional(),
+			))
+
+			r := New(form,
+				WithNonInteractive(Always),
+				WithAnswers(map[string]any{"xs": tc.answer}),
+			)
+
+			if err := r.Run(); err != nil {
+				t.Fatalf("expected no error, got %v", err)
+			}
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Errorf("expected %v, got %v", tc.want, got)
+			}
+		})
+	}
+}
+
+func TestRunner_MultiSelectTypedNonString(t *testing.T) {
+	cases := map[string]struct {
+		answer any
+		want   []int
+	}{
+		"[]T":            {[]int{3, 1}, []int{3, 1}},
+		"[]any of T":     {[]any{1, 2}, []int{1, 2}},
+		"[]string":       {[]string{"2", "3"}, []int{2, 3}},
+		"single T":       {2, []int{2}},
+		"comma string":   {"1,3", []int{1, 3}},
+		"[]any mixed":    {[]any{1, "two"}, []int{1, 2}},
+		"[]int64 via %v": {[]int64{1}, []int{1}},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			var got []int
+			form := NewForm(NewGroup(
+				NewMultiSelect[int]().Key("ns").
+					Options(
+						huh.NewOption("one", 1),
+						huh.NewOption("two", 2),
+						huh.NewOption("three", 3),
+					).
+					Value(&got),
+			))
+
+			r := New(form,
+				WithNonInteractive(Always),
+				WithAnswers(map[string]any{"ns": tc.answer}),
+			)
+
+			if err := r.Run(); err != nil {
+				t.Fatalf("expected no error, got %v", err)
+			}
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Errorf("expected %v, got %v", tc.want, got)
+			}
+		})
+	}
+}
+
+func TestRunner_MultiSelectTypedRejectsUnknown(t *testing.T) {
+	var got []int
+	form := NewForm(NewGroup(
+		NewMultiSelect[int]().Key("ns").
+			Options(huh.NewOption("one", 1)).
+			Value(&got),
+	))
+
+	r := New(form,
+		WithNonInteractive(Always),
+		WithAnswers(map[string]any{"ns": []int{1, 9}}),
+	)
+
+	err := r.Run()
+	if err == nil {
+		t.Fatal("expected error for unknown typed option")
+	}
+	if !strings.Contains(err.Error(), `field "ns": 9 is not a valid option`) {
+		t.Errorf("expected field-prefixed invalid-option error, got %q", err.Error())
+	}
+	if got != nil {
+		t.Errorf("expected bound value untouched, got %v", got)
+	}
+}
+
+func TestRunner_MultiSelectRejectsNestedList(t *testing.T) {
+	var got []string
+	form := NewForm(NewGroup(
+		NewMultiSelect[string]().Key("xs").
+			Options(huh.NewOption("a", "a")).
+			Value(&got),
+	))
+
+	r := New(form,
+		WithNonInteractive(Always),
+		WithAnswers(map[string]any{"xs": []any{[]string{"a"}}}),
+	)
+
+	err := r.Run()
+	if err == nil {
+		t.Fatal("expected error for nested list element")
+	}
+	if !strings.Contains(err.Error(), `field "xs": expected a single value, got []string`) {
+		t.Errorf("expected nested-list error, got %q", err.Error())
+	}
+}

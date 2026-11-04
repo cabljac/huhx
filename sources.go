@@ -9,24 +9,21 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// loadAnswerFile reads a YAML/JSON file into a flat map of string answers.
-// Returns an empty (non-nil) map if no path is configured so callers can
-// always index safely.
-func loadAnswerFile(path string) (map[string]string, error) {
+// loadAnswerFile reads a YAML/JSON file into a map of answers, keeping
+// each value's decoded type so lists reach fields as lists. Returns an
+// empty (non-nil) map if no path is configured so callers can always
+// index safely.
+func loadAnswerFile(path string) (map[string]any, error) {
 	if path == "" {
-		return map[string]string{}, nil
+		return map[string]any{}, nil
 	}
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read answer file %q: %w", path, err)
 	}
-	var generic map[string]any
-	if err := yaml.Unmarshal(raw, &generic); err != nil {
+	out := map[string]any{}
+	if err := yaml.Unmarshal(raw, &out); err != nil {
 		return nil, fmt.Errorf("parse answer file %q: %w", path, err)
-	}
-	out := make(map[string]string, len(generic))
-	for k, v := range generic {
-		out[k] = fmt.Sprintf("%v", v)
 	}
 	return out, nil
 }

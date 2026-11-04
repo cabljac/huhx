@@ -481,3 +481,157 @@ func TestRunner_KeylessOptionalFieldSkipped(t *testing.T) {
 		t.Errorf("expected nickname zero, got %q", nickname)
 	}
 }
+
+func TestRunner_ScalarAnswerFallback(t *testing.T) {
+	t.Run("int for Input renders via %v", func(t *testing.T) {
+		var got string
+		form := NewForm(NewGroup(NewInput().Key("port").Value(&got)))
+		r := New(form,
+			WithNonInteractive(Always),
+			WithAnswers(map[string]any{"port": 8080}),
+		)
+		if err := r.Run(); err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if got != "8080" {
+			t.Errorf("expected %q, got %q", "8080", got)
+		}
+	})
+
+	t.Run("bool for Text renders via %v", func(t *testing.T) {
+		var got string
+		form := NewForm(NewGroup(NewText().Key("notes").Value(&got)))
+		r := New(form,
+			WithNonInteractive(Always),
+			WithAnswers(map[string]any{"notes": true}),
+		)
+		if err := r.Run(); err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if got != "true" {
+			t.Errorf("expected %q, got %q", "true", got)
+		}
+	})
+
+	t.Run("bool for Confirm passes through", func(t *testing.T) {
+		var got bool
+		form := NewForm(NewGroup(NewConfirm().Key("ok").Value(&got)))
+		r := New(form,
+			WithNonInteractive(Always),
+			WithAnswers(map[string]any{"ok": true}),
+		)
+		if err := r.Run(); err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if !got {
+			t.Error("expected true")
+		}
+	})
+
+	t.Run("int for Confirm parses via %v", func(t *testing.T) {
+		var got bool
+		form := NewForm(NewGroup(NewConfirm().Key("ok").Value(&got)))
+		r := New(form,
+			WithNonInteractive(Always),
+			WithAnswers(map[string]any{"ok": 1}),
+		)
+		if err := r.Run(); err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if !got {
+			t.Error("expected true")
+		}
+	})
+}
+
+func TestRunner_ListAnswerRejectedForScalarFields(t *testing.T) {
+	cases := map[string]field{
+		"Input":   NewInput().Key("x").Value(new(string)),
+		"Text":    NewText().Key("x").Value(new(string)),
+		"Confirm": NewConfirm().Key("x").Value(new(bool)),
+	}
+	for name, f := range cases {
+		t.Run(name, func(t *testing.T) {
+			form := NewForm(NewGroup(f))
+			r := New(form,
+				WithNonInteractive(Always),
+				WithAnswers(map[string]any{"x": []string{"a", "b"}}),
+			)
+			err := r.Run()
+			if err == nil {
+				t.Fatal("expected error for list answer")
+			}
+			if !strings.Contains(err.Error(), `field "x": expected a single value, got []string`) {
+				t.Errorf("expected single-value error, got %q", err.Error())
+			}
+		})
+	}
+}
+
+func TestRunner_CobraSliceFlagPassesList(t *testing.T) {
+	cases := map[string][]string{
+		"repeated":        {"--regions", "us-east-1", "--regions", "us-west-2"},
+		"comma-separated": {"--regions", "us-east-1,us-west-2"},
+	}
+	for name, args := range cases {
+		t.Run(name, func(t *testing.T) {
+			var regions []string
+			form := NewForm(NewGroup(
+				NewMultiSelect[string]().Key("regions").
+					Options(
+						huh.NewOption("us-east-1", "us-east-1"),
+						huh.NewOption("us-west-2", "us-west-2"),
+					).
+					Value(&regions),
+			))
+
+			cmd := &cobra.Command{Use: "t"}
+			cmd.Flags().StringSlice("regions", nil, "")
+			if err := cmd.ParseFlags(args); err != nil {
+				t.Fatal(err)
+			}
+
+			r := New(form,
+				WithNonInteractive(Always),
+				WithCobraFlags(cmd),
+			)
+			if err := r.Run(); err != nil {
+				t.Fatalf("expected no error, got %v", err)
+			}
+			want := []string{"us-east-1", "us-west-2"}
+			if len(regions) != 2 || regions[0] != want[0] || regions[1] != want[1] {
+				t.Errorf("expected %v, got %v", want, regions)
+			}
+		})
+	}
+}
+
+func TestRunner_CobraScalarFlagStaysString(t *testing.T) {
+	var regions []string
+	form := NewForm(NewGroup(
+		NewMultiSelect[string]().Key("regions").
+			Options(
+				huh.NewOption("us-east-1", "us-east-1"),
+				huh.NewOption("us-west-2", "us-west-2"),
+			).
+			Value(&regions),
+	))
+
+	cmd := &cobra.Command{Use: "t"}
+	cmd.Flags().String("regions", "", "")
+	if err := cmd.ParseFlags([]string{"--regions", "us-east-1,us-west-2"}); err != nil {
+		t.Fatal(err)
+	}
+
+	r := New(form,
+		WithNonInteractive(Always),
+		WithCobraFlags(cmd),
+	)
+	if err := r.Run(); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	want := []string{"us-east-1", "us-west-2"}
+	if len(regions) != 2 || regions[0] != want[0] || regions[1] != want[1] {
+		t.Errorf("expected %v, got %v", want, regions)
+	}
+}
