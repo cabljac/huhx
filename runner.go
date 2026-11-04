@@ -51,9 +51,10 @@ func New(form *Form, opts ...Option) *Runner {
 
 // Run executes the form. In interactive mode it delegates to huh.Form.Run().
 // In non-interactive mode it walks groups and resolves each field's answer
-// from the configured sources. It stops at the end of the first group
-// with an error and returns every error in that group joined, so
-// errors.Is and errors.As reach each wrapped validator error.
+// from the configured sources. Missing answers are collected across all
+// groups. A group with an invalid value stops the walk at its end. The
+// returned error joins that group's field errors and the missing answers
+// found so far, so errors.Is and errors.As reach each validator error.
 func (r *Runner) Run() error {
 	if r.isNonInteractive() {
 		return r.runNonInteractive()
@@ -94,23 +95,25 @@ func (r *Runner) runNonInteractive() error {
 		return err
 	}
 
+	var missing []string
 	for gi, g := range r.form.groups {
 		if g.hide != nil && g.hide() {
 			continue
 		}
-		if err := r.runGroup(gi, g, fileAns, cliAns); err != nil {
-			return err
+		errs, groupMissing := r.runGroup(gi, g, fileAns, cliAns)
+		missing = append(missing, groupMissing...)
+		// A missing answer writes nothing, so later groups only need
+		// protecting from invalid values.
+		if len(errs) > 0 {
+			return r.joinErrs(errs, missing)
 		}
 	}
-	return nil
+	return r.joinErrs(nil, missing)
 }
 
-// runGroup answers every field in g and returns all of its errors joined.
-// The caller stops at the first failing group because later groups can
-// read this group's values through OptionsFunc and WithHideFunc.
-func (r *Runner) runGroup(gi int, g *Group, fileAns map[string]any, cliAns map[string]string) error {
-	var errs []error
-	var missing []string
+// runGroup answers every field in g. It returns the invalid-value errors
+// and the keys of required fields that have no answer.
+func (r *Runner) runGroup(gi int, g *Group, fileAns map[string]any, cliAns map[string]string) (errs []error, missing []string) {
 	for fi, f := range g.fields {
 		if f.key() == "" {
 			if f.required() {
@@ -132,10 +135,19 @@ func (r *Runner) runGroup(gi int, g *Group, fileAns map[string]any, cliAns map[s
 			errs = append(errs, fmt.Errorf("field %q: %w", f.key(), err))
 		}
 	}
+	return errs, missing
+}
+
+// joinErrs returns errs and the missing-answers block as one error, or a
+// lone error unwrapped so its text and type stay as they were.
+func (r *Runner) joinErrs(errs []error, missing []string) error {
 	if len(missing) > 0 {
 		errs = append(errs, r.missingErr(missing))
 	}
-	if len(errs) == 1 {
+	switch len(errs) {
+	case 0:
+		return nil
+	case 1:
 		return errs[0]
 	}
 	return errors.Join(errs...)

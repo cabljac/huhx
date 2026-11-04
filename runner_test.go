@@ -908,26 +908,50 @@ missing required answers for:
 	}
 }
 
-func TestRunner_StopsAfterFirstFailedGroup(t *testing.T) {
+func TestRunner_GroupWalk(t *testing.T) {
 	cases := []struct {
-		name    string
-		answers map[string]any
-		want    string
+		name           string
+		answers        map[string]any
+		want           string
+		laterEvaluated bool
 	}{
-		{"invalid answer", map[string]any{"first": "bad"}, `field "first": bad first`},
-		{"missing answer only", map[string]any{}, "--first"},
+		{
+			name:    "invalid answer stops the walk",
+			answers: map[string]any{"first": "bad", "extra": "x"},
+			want:    `field "first": bad first`,
+		},
+		{
+			name:    "missing answers keep walking",
+			answers: map[string]any{},
+			want: "missing required answers for:\n" +
+				"  --first  (env: APP_FIRST)\n" +
+				"  --extra  (env: APP_EXTRA)\n" +
+				"  --second (env: APP_SECOND)\n" +
+				"  --third  (env: APP_THIRD)",
+			laterEvaluated: true,
+		},
+		{
+			name:    "invalid answer reports missing keys collected so far",
+			answers: map[string]any{"first": "bad"},
+			want: "field \"first\": bad first\n" +
+				"missing required answers for:\n" +
+				"  --extra (env: APP_EXTRA)",
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			var first, second, third string
+			var first, extra, second, third string
 			hideCalls, optionCalls := 0, 0
 			form := NewForm(
-				NewGroup(NewInput().Key("first").Value(&first).Validate(func(s string) error {
-					if s == "bad" {
-						return errors.New("bad first")
-					}
-					return nil
-				})),
+				NewGroup(
+					NewInput().Key("first").Value(&first).Validate(func(s string) error {
+						if s == "bad" {
+							return errors.New("bad first")
+						}
+						return nil
+					}),
+					NewInput().Key("extra").Value(&extra),
+				),
 				NewGroup(
 					NewSelect[string]().Key("second").Value(&second).
 						OptionsFunc(func() []huh.Option[string] {
@@ -942,20 +966,20 @@ func TestRunner_StopsAfterFirstFailedGroup(t *testing.T) {
 			)
 			hideCalls = 0 // huh evaluates the hide func while building the form.
 
-			err := New(form, WithNonInteractive(Always), WithAnswers(tc.answers)).Run()
+			err := New(form,
+				WithNonInteractive(Always),
+				WithEnvPrefix("APP"),
+				WithAnswers(tc.answers),
+			).Run()
 			if err == nil {
 				t.Fatal("expected error")
 			}
-			if !strings.Contains(err.Error(), tc.want) {
-				t.Errorf("expected %q in error, got %q", tc.want, err.Error())
+			if err.Error() != tc.want {
+				t.Errorf("expected:\n%s\ngot:\n%s", tc.want, err.Error())
 			}
-			for _, k := range []string{"second", "third"} {
-				if strings.Contains(err.Error(), k) {
-					t.Errorf("expected later group not reported, got %q", err.Error())
-				}
-			}
-			if hideCalls != 0 || optionCalls != 0 {
-				t.Errorf("expected later group not evaluated, got hide=%d options=%d", hideCalls, optionCalls)
+			evaluated := hideCalls > 0 || optionCalls > 0
+			if evaluated != tc.laterEvaluated {
+				t.Errorf("expected later group evaluated=%v, got hide=%d options=%d", tc.laterEvaluated, hideCalls, optionCalls)
 			}
 		})
 	}

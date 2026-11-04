@@ -160,8 +160,8 @@ func TestE2E_DeployMissingRequired(t *testing.T) {
 	if !strings.Contains(stderr, "(env: DEPLOY_ENVIRONMENT)") {
 		t.Errorf("expected stderr to surface env hint, got %q", stderr)
 	}
-	if strings.Contains(stderr, "(env: DEPLOY_REGIONS)") {
-		t.Errorf("expected walk to stop before the regions group, got %q", stderr)
+	if !strings.Contains(stderr, "(env: DEPLOY_REGIONS)") {
+		t.Errorf("expected missing answers from the later group listed too, got %q", stderr)
 	}
 }
 
@@ -183,6 +183,9 @@ func TestE2E_DeployReportsEveryErrorInGroup(t *testing.T) {
 		"  --name (env: DEPLOY_NAME)\n"
 	if !strings.HasPrefix(stderr, want) {
 		t.Errorf("expected stderr to start with %q, got %q", want, stderr)
+	}
+	if strings.Contains(stderr, "(env: DEPLOY_REGIONS)") {
+		t.Errorf("expected walk to stop before the regions group, got %q", stderr)
 	}
 }
 

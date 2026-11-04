@@ -221,11 +221,17 @@ takes a predicate re-evaluated at run time.
 
 ## Errors
 
-The runner answers every field in a group before it reports errors, so
-one run shows every problem in that group: invalid answers, validator
-failures, keyless required fields and missing answers. It stops at the
-end of the first group with any error, because later groups can read
-earlier values through `OptionsFunc` and `WithHideFunc`.
+The runner answers every field in a group before it reports errors.
+
+- Missing answers are collected across all groups and reported together
+  at the end.
+- An invalid value (a parse or validator failure, or a required field
+  with no `Key`) stops the walk at the end of its group. Later groups
+  can read earlier values through `OptionsFunc` and `WithHideFunc`, so
+  they are not evaluated against bad data. A missing answer writes
+  nothing, so it does not stop the walk.
+- The error lists every invalid value in that group, then the missing
+  answers found so far.
 
 ```
 field "environment": "production" is not a valid option
