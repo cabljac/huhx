@@ -107,7 +107,11 @@ func (r *Runner) runNonInteractive() error {
 			}
 			ans, ok := r.resolve(f.key(), fileAns, cliAns)
 			if !ok {
-				if f.required() {
+				hasDefault, err := f.checkDefault()
+				if err != nil {
+					return fmt.Errorf("field %q: %w", f.key(), err)
+				}
+				if !hasDefault && f.required() {
 					missing = append(missing, f.key())
 				}
 				continue

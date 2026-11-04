@@ -119,6 +119,27 @@ func TestE2E_DeployHiddenGroupSkipped(t *testing.T) {
 	}
 }
 
+// TestE2E_DeployConfirmDefaultsToBoundValue proves a visible Confirm with
+// no answer takes its bound value instead of failing as missing.
+func TestE2E_DeployConfirmDefaultsToBoundValue(t *testing.T) {
+	if testing.Short() || deployBin == "" {
+		t.Skip("e2e requires built binary; skipped under -short")
+	}
+	stdout, stderr, code := runDeploy(t,
+		[]string{"CI=1"},
+		"--answer", "name=myapp",
+		"--answer", "environment=prod",
+		"--answer", "regions=us-east-1",
+	)
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d. stdout=%q stderr=%q", code, stdout, stderr)
+	}
+	want := `Deploying "myapp" to prod (regions: us-east-1; all regions: false)`
+	if !strings.Contains(stdout, want) {
+		t.Errorf("expected stdout to contain %q, got %q", want, stdout)
+	}
+}
+
 func TestE2E_DeployMissingRequired(t *testing.T) {
 	if testing.Short() || deployBin == "" {
 		t.Skip("e2e requires built binary; skipped under -short")

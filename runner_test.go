@@ -85,14 +85,11 @@ func TestRunner_MissingRequiredAnswer(t *testing.T) {
 	if !strings.Contains(msg, "--environment") {
 		t.Errorf("expected --environment listed, got %q", msg)
 	}
-	if !strings.Contains(msg, "--all-regions") {
-		t.Errorf("expected --all-regions listed, got %q", msg)
-	}
 	if !strings.Contains(msg, "(env: DEPLOY_ENVIRONMENT)") {
 		t.Errorf("expected env hint for environment, got %q", msg)
 	}
-	if !strings.Contains(msg, "(env: DEPLOY_ALL_REGIONS)") {
-		t.Errorf("expected env hint for all-regions, got %q", msg)
+	if strings.Contains(msg, "--all-regions") {
+		t.Errorf("expected Confirm never listed as missing, got %q", msg)
 	}
 }
 
@@ -634,4 +631,239 @@ func TestRunner_CobraScalarFlagStaysString(t *testing.T) {
 	if len(regions) != 2 || regions[0] != want[0] || regions[1] != want[1] {
 		t.Errorf("expected %v, got %v", want, regions)
 	}
+}
+
+func TestRunner_BoundValueIsDefault(t *testing.T) {
+	opts := []huh.Option[string]{huh.NewOption("a", "a"), huh.NewOption("b", "b")}
+
+	t.Run("input", func(t *testing.T) {
+		name := "prefilled"
+		form := NewForm(NewGroup(NewInput().Key("name").Value(&name)))
+		if err := New(form, WithNonInteractive(Always)).Run(); err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if name != "prefilled" {
+			t.Errorf("expected name kept, got %q", name)
+		}
+	})
+
+	t.Run("text", func(t *testing.T) {
+		bio := "prefilled"
+		form := NewForm(NewGroup(NewText().Key("bio").Value(&bio)))
+		if err := New(form, WithNonInteractive(Always)).Run(); err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if bio != "prefilled" {
+			t.Errorf("expected bio kept, got %q", bio)
+		}
+	})
+
+	t.Run("select", func(t *testing.T) {
+		env := "b"
+		form := NewForm(NewGroup(NewSelect[string]().Key("env").Options(opts...).Value(&env)))
+		if err := New(form, WithNonInteractive(Always)).Run(); err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if env != "b" {
+			t.Errorf("expected env kept, got %q", env)
+		}
+	})
+
+	t.Run("select set after build", func(t *testing.T) {
+		var env string
+		form := NewForm(NewGroup(NewSelect[string]().Key("env").Options(opts...).Value(&env)))
+		env = "b"
+		if err := New(form, WithNonInteractive(Always)).Run(); err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if env != "b" {
+			t.Errorf("expected env kept, got %q", env)
+		}
+	})
+
+	t.Run("select with OptionsFunc", func(t *testing.T) {
+		env := "b"
+		form := NewForm(NewGroup(NewSelect[string]().Key("env").
+			OptionsFunc(func() []huh.Option[string] { return opts }, nil).Value(&env)))
+		if err := New(form, WithNonInteractive(Always)).Run(); err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+	})
+
+	t.Run("multiselect", func(t *testing.T) {
+		regions := []string{"a"}
+		form := NewForm(NewGroup(NewMultiSelect[string]().Key("regions").Options(opts...).Value(&regions)))
+		if err := New(form, WithNonInteractive(Always)).Run(); err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if len(regions) != 1 || regions[0] != "a" {
+			t.Errorf("expected regions kept, got %v", regions)
+		}
+	})
+
+	t.Run("confirm false", func(t *testing.T) {
+		ok := false
+		form := NewForm(NewGroup(NewConfirm().Key("ok").Value(&ok)))
+		if err := New(form, WithNonInteractive(Always)).Run(); err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if ok {
+			t.Errorf("expected ok false, got true")
+		}
+	})
+
+	t.Run("confirm true", func(t *testing.T) {
+		ok := true
+		form := NewForm(NewGroup(NewConfirm().Key("ok").Value(&ok)))
+		if err := New(form, WithNonInteractive(Always)).Run(); err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if !ok {
+			t.Errorf("expected ok true, got false")
+		}
+	})
+
+	t.Run("confirm unbound", func(t *testing.T) {
+		form := NewForm(NewGroup(NewConfirm().Key("ok")))
+		if err := New(form, WithNonInteractive(Always)).Run(); err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+	})
+
+	t.Run("read through accessor", func(t *testing.T) {
+		a := &boxAccessor[string]{v: "from-accessor"}
+		form := NewForm(NewGroup(NewInput().Key("name").Accessor(a)))
+		if err := New(form, WithNonInteractive(Always)).Run(); err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if a.v != "from-accessor" {
+			t.Errorf("expected accessor value kept, got %q", a.v)
+		}
+	})
+}
+
+func TestRunner_EmptyBoundValueIsMissing(t *testing.T) {
+	opts := []huh.Option[string]{huh.NewOption("a", "a"), huh.NewOption("b", "b")}
+	var (
+		name, bio string
+		env       = "not-an-option"
+		dyn       = "a"
+		late      string
+		regions   []string
+	)
+	form := NewForm(NewGroup(
+		NewInput().Key("name").Value(&name),
+		NewText().Key("bio").Value(&bio),
+		NewSelect[string]().Key("env").Options(opts...).Value(&env),
+		NewSelect[string]().Key("dyn").
+			OptionsFunc(func() []huh.Option[string] { return opts[1:] }, nil).Value(&dyn),
+		NewSelect[string]().Key("late").Value(&late).Options(opts...),
+		NewMultiSelect[string]().Key("regions").Options(opts...).Value(&regions),
+		NewInput().Key("unbound"),
+	))
+	err := New(form, WithNonInteractive(Always)).Run()
+	if err == nil {
+		t.Fatal("expected missing-answer error")
+	}
+	for _, k := range []string{"--name", "--bio", "--env", "--dyn", "--late", "--regions", "--unbound"} {
+		if !strings.Contains(err.Error(), k) {
+			t.Errorf("expected %s listed, got %q", k, err.Error())
+		}
+	}
+}
+
+func TestRunner_SourcesWinOverBoundValue(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "answers.yaml")
+	if err := os.WriteFile(path, []byte("file-key: from-file\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("SRC_ENV_KEY", "from-env")
+
+	vals := map[string]*string{}
+	var fields []field
+	for _, k := range []string{"map-key", "flag-key", "answer-key", "file-key", "env-key"} {
+		v := "from-default"
+		vals[k] = &v
+		fields = append(fields, NewInput().Key(k).Value(&v))
+	}
+	ok := true
+	fields = append(fields, NewConfirm().Key("confirm-key").Value(&ok))
+
+	cmd := &cobra.Command{Use: "t"}
+	cmd.Flags().String("flag-key", "", "")
+	cmd.Flags().StringArray("answer", nil, "")
+	if err := cmd.ParseFlags([]string{
+		"--flag-key", "from-flag",
+		"--answer", "answer-key=from-answer",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	r := New(NewForm(NewGroup(fields...)),
+		WithNonInteractive(Always),
+		WithEnvPrefix("SRC"),
+		WithCobraFlags(cmd),
+		WithAnswerFile(path),
+		WithAnswers(map[string]any{"map-key": "from-map", "confirm-key": false}),
+	)
+	if err := r.Run(); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	want := map[string]string{
+		"map-key":    "from-map",
+		"flag-key":   "from-flag",
+		"answer-key": "from-answer",
+		"file-key":   "from-file",
+		"env-key":    "from-env",
+	}
+	for k, w := range want {
+		if *vals[k] != w {
+			t.Errorf("%s: expected %q, got %q", k, w, *vals[k])
+		}
+	}
+	if ok {
+		t.Errorf("confirm-key: expected source false to win over bound true")
+	}
+}
+
+func TestRunner_ValidatorRunsOnBoundValue(t *testing.T) {
+	errBad := errors.New("bad default")
+	opts := []huh.Option[string]{huh.NewOption("a", "a"), huh.NewOption("b", "b")}
+	name := "prefilled"
+	bio := "prefilled"
+	env := "a"
+	regions := []string{"a"}
+	ok := false
+
+	cases := []struct {
+		name  string
+		field field
+	}{
+		{"input", NewInput().Key("k").Value(&name).Validate(func(string) error { return errBad })},
+		{"text", NewText().Key("k").Value(&bio).Validate(func(string) error { return errBad })},
+		{"select", NewSelect[string]().Key("k").Options(opts...).Value(&env).Validate(func(string) error { return errBad })},
+		{"multiselect", NewMultiSelect[string]().Key("k").Options(opts...).Value(&regions).Validate(func([]string) error { return errBad })},
+		{"confirm", NewConfirm().Key("k").Value(&ok).Validate(func(bool) error { return errBad })},
+		{"optional input", NewInput().Key("k").Value(&name).Validate(func(string) error { return errBad }).Optional()},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := New(NewForm(NewGroup(tc.field)), WithNonInteractive(Always)).Run()
+			if !errors.Is(err, errBad) {
+				t.Fatalf("expected validator error, got %v", err)
+			}
+			if !strings.Contains(err.Error(), `field "k"`) {
+				t.Errorf("expected field-prefixed error, got %q", err.Error())
+			}
+		})
+	}
+
+	t.Run("empty optional input skips validator", func(t *testing.T) {
+		var empty string
+		f := NewInput().Key("k").Value(&empty).Validate(func(string) error { return errBad }).Optional()
+		if err := New(NewForm(NewGroup(f)), WithNonInteractive(Always)).Run(); err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+	})
 }
