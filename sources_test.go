@@ -194,3 +194,41 @@ func TestRunner_AnswerFileNestedMap(t *testing.T) {
 		}
 	})
 }
+
+func TestRunner_AnswerFileNullIsMissing(t *testing.T) {
+	t.Run("required field is reported missing", func(t *testing.T) {
+		var name string
+		form := NewForm(NewGroup(NewInput().Key("name").Value(&name)))
+		r := New(form,
+			WithNonInteractive(Always),
+			WithAnswerFile(writeAnswerFile(t, "a.yaml", "name:\n")),
+		)
+		err := r.Run()
+		if err == nil {
+			t.Fatal("expected missing-answer error for null value")
+		}
+		if !strings.Contains(err.Error(), "missing required answers for:") || !strings.Contains(err.Error(), "--name") {
+			t.Errorf("expected missing-answer error for name, got %q", err.Error())
+		}
+		if name != "" {
+			t.Errorf("expected name untouched, got %q", name)
+		}
+	})
+
+	t.Run("env layer below still applies", func(t *testing.T) {
+		t.Setenv("APP_NAME", "from-env")
+		var name string
+		form := NewForm(NewGroup(NewInput().Key("name").Value(&name)))
+		r := New(form,
+			WithNonInteractive(Always),
+			WithEnvPrefix("APP"),
+			WithAnswerFile(writeAnswerFile(t, "a.yaml", "name: ~\n")),
+		)
+		if err := r.Run(); err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if name != "from-env" {
+			t.Errorf("expected name %q, got %q", "from-env", name)
+		}
+	})
+}

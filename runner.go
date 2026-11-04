@@ -139,7 +139,7 @@ func (r *Runner) resolve(key string, fileAns map[string]any, cliAns map[string]s
 	if v, ok := cliAns[key]; ok {
 		return v, true
 	}
-	if v, ok := fileAns[key]; ok {
+	if v, ok := fileAns[key]; ok && v != nil {
 		return v, true
 	}
 	if r.envPrefix != "" {
